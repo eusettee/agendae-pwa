@@ -2,6 +2,12 @@
 
 O backend usa Cloud Firestore via Firebase Admin SDK. O frontend continua chamando a API da Vercel. Não é necessário configurar Firebase Authentication ou colocar chaves no JavaScript público.
 
+## Configuração realizada
+
+Projeto `agendae-f95c6`, banco `(default)`, região `southamerica-east1` (São Paulo). APIs Firestore e IAM habilitadas; regras versionadas publicadas. A conta dedicada `agendae-vercel@agendae-f95c6.iam.gserviceaccount.com` usa `roles/datastore.user`. As três variáveis Firebase estão configuradas de forma protegida na Vercel, em Production.
+
+Em 05/10/2026, foram validados conexão, transações e CRUD em produção, incluindo cadastro, sessão, disponibilidade compartilhada e logout. Os dados fictícios foram removidos. A cópia local autorizada da chave fica em `.firebase/agendae-service-account.json`, ignorada pelo Git; não a compartilhe. O login da aplicação continua usando sessões próprias, sem Firebase Authentication. A IA ainda exige sua chave OpenAI.
+
 ## Projeto e banco
 
 1. Crie um projeto em https://console.firebase.google.com/.

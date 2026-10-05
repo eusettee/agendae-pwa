@@ -38,7 +38,7 @@ PWA acadêmica do Projeto Integrador do SENAC para simplificar o agendamento de 
 | Elegibilidade para instalação | Confirmada pelo Chrome | Instalação efetiva depende do navegador/plataforma |
 | Publicação e integração GitHub–Vercel | Configuradas | Push na branch `main` dispara deploy |
 
-Na última verificação em **05/10/2026**, o site estava publicado e `/api/status` informava `accounts: false` e `ai: false`: as variáveis do banco e da OpenAI ainda não estavam configuradas. A demonstração local permanecia disponível. Esse registro descreve aquela verificação; consulte o endpoint para conhecer a configuração atual. Ele indica presença de configuração, não garante conectividade com os provedores.
+Na verificação de produção em **05/10/2026**, `/api/status` informou `accounts: true`, `database: "firestore"` e `ai: false`. Cadastro, sessão, criação, edição, disponibilidade compartilhada, cancelamento e revogação por logout foram testados pela API publicada, com uma conta fictícia removida ao terminar. A OpenAI permanece sem chave configurada. O endpoint de status indica presença de configuração; os testes de CRUD confirmaram a conexão real naquela verificação.
 
 A IA foi deixada preparada, sem chamadas reais. O projeto Firebase `agendae-f95c6` tem Cloud Firestore padrão em São Paulo (`southamerica-east1`), regras publicadas e credenciais protegidas configuradas na Vercel. A conta de serviço dedicada utiliza `roles/datastore.user`. Veja [o guia completo de configuração](docs/FIREBASE.md).
 
@@ -365,7 +365,7 @@ npm run test:e2e
 
 Na última validação funcional, passaram **11 testes de regras/API/IA/Firestore/autenticação móvel e 6 testes de navegador**. A suíte fecha a página e reabre offline, verifica todas as telas, leitura, estilos e navegação sem chamadas à API. Os testes usam SQLite e um simulador do contrato Firestore; não comprovam conexão com o Firebase real. As respostas OpenAI também são simuladas.
 
-Após configurar `.env.local` com as credenciais, execute `npm run test:firebase` para verificar conexão, concorrência, isolamento, edição e exclusão no Firestore real. O teste cria e remove consultas com identificadores exclusivos. Essa verificação já passou no projeto `agendae-f95c6`; durante a configuração inicial também houve respostas de permissão insuficiente após a alteração IAM. Aguarde a propagação e valide novamente se esse erro ocorrer.
+Após configurar `.env.local` com as credenciais, execute `npm run test:firebase` para verificar conexão, concorrência, isolamento, edição e exclusão no Firestore real. O teste cria e remove consultas com identificadores exclusivos. Essa verificação já passou no projeto `agendae-f95c6`, assim como o CRUD pela API de produção. Alterações de permissões IAM podem exigir tempo de propagação antes de novos testes.
 
 O Playwright usa Chrome instalado e a porta 3000. Ele reutiliza um servidor existente; confirme que esse servidor executa a versão atual do projeto. As capturas ficam em `artifacts/`, e os relatórios temporários são ignorados pelo Git.
 
@@ -451,7 +451,7 @@ Referência: [integração Git da Vercel](https://vercel.com/docs/cli/git).
 
 ## Próximas etapas
 
-- Ativar e validar Cloud Firestore e, quando solicitado, a chave OpenAI na produção.
+- Ativar e validar a chave OpenAI na produção quando ela estiver configurada.
 - Validar a pré-triagem e o comportamento de urgência com profissionais de saúde.
 - Recuperação de senha, verificação de e-mail e gestão/exclusão de conta.
 - Perfis de administrador e profissional, com CRUD de clínicas, especialidades e disponibilidade.
