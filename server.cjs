@@ -2,7 +2,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.join(__dirname, 'public');
-const handlers = Object.fromEntries(['catalog', 'appointments', 'auth', 'availability', 'triage', 'status'].map(name => [`/api/${name}`, require(`./api/${name}.js`)]));
+const handlers = Object.fromEntries(['catalog', 'appointments', 'auth', 'mobile-auth', 'availability', 'triage', 'status'].map(name => [`/api/${name}`, require(`./api/${name}.js`)]));
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
 const server = http.createServer(async (req, res) => {
   res.status = code => { res.statusCode = code; return res; };

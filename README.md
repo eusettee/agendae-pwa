@@ -111,6 +111,10 @@ Preencha os valores e reinicie `npm start`. O comando carrega esse arquivo autom
 
 ## Arquitetura e tecnologias
 
+### Aplicativo Expo para celular
+
+O app Android/iOS está em [`mobile/`](mobile/README.md), com cadastro/login, CRUD conectado ao backend, disponibilidade compartilhada e triagem. Para abrir no Expo Go: `cd mobile`, `npm ci`, `npm start` e escaneie o QR Code com um dispositivo compatível com SDK 57. Celular e PWA utilizam a mesma conta e consultas no Firestore. O app exige a configuração Firebase na Vercel; não utiliza demonstração local. Confira o [guia móvel](mobile/README.md) para conexão, testes e APK.
+
 ```mermaid
 flowchart LR
     U[Usuário] --> P[PWA: HTML, CSS e JavaScript]
@@ -260,6 +264,7 @@ Base: `/api`. Entradas e respostas em JSON. Rotas privadas autenticam pelo cooki
 | GET | `/status` | Público | Presença de configuração de banco e IA |
 | GET | `/auth` | Público/sessão | Usuário da sessão ou `null` |
 | POST | `/auth` | Conforme ação | `register`, `login` ou `logout` |
+| GET/POST | `/mobile-auth` | Conforme ação | Sessão móvel; login/cadastro retornam token Bearer para SecureStore |
 | GET | `/appointments` | Login | Consultas do usuário |
 | POST | `/appointments` | Login | Cria consulta |
 | PUT | `/appointments` | Login | Atualiza consulta pelo ID no corpo |
@@ -358,7 +363,7 @@ npm run test:e2e
 | Navegador | Cadastro/login, CRUD, persistência, edição offline, manifest, cache e layouts |
 | Instalação | Elegibilidade da PWA no Chrome fora do modo anônimo |
 
-Na última validação funcional, passaram **10 testes de regras/API/IA/Firestore e 6 testes de navegador**. A suíte fecha a página e reabre offline, verifica todas as telas, leitura, estilos e navegação sem chamadas à API. Os testes usam SQLite e um simulador do contrato Firestore; não comprovam conexão com o Firebase real. As respostas OpenAI também são simuladas.
+Na última validação funcional, passaram **11 testes de regras/API/IA/Firestore/autenticação móvel e 6 testes de navegador**. A suíte fecha a página e reabre offline, verifica todas as telas, leitura, estilos e navegação sem chamadas à API. Os testes usam SQLite e um simulador do contrato Firestore; não comprovam conexão com o Firebase real. As respostas OpenAI também são simuladas.
 
 Após configurar `.env.local` com as credenciais, execute `npm run test:firebase` para verificar conexão, concorrência, isolamento, edição e exclusão no Firestore real. O teste cria e remove consultas com identificadores exclusivos. A conexão real permanece pendente até o projeto estar configurado.
 
@@ -452,7 +457,7 @@ Referência: [integração Git da Vercel](https://vercel.com/docs/cli/git).
 - Perfis de administrador e profissional, com CRUD de clínicas, especialidades e disponibilidade.
 - Integração com clínicas reais, auditoria, consentimentos e política de retenção.
 - Testes de usabilidade, acessibilidade e uso por pessoas idosas.
-- App React Native, lembretes e outras funções previstas nas etapas posteriores.
+- Validar o app Expo em celulares físicos, gerar builds e implementar lembretes.
 
 ## Contexto acadêmico
 
