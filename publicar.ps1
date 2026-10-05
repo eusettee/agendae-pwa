@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 function Assert-Success([string]$Message) { if ($LASTEXITCODE -ne 0) { throw $Message } }
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { throw 'Instale o GitHub CLI (gh) para publicar.' }
@@ -36,6 +36,17 @@ npx.cmd --yes vercel@latest link --yes --project agendae-pwa
 Assert-Success 'Não foi possível vincular o projeto na Vercel.'
 npx.cmd --yes vercel@latest --prod --yes
 Assert-Success 'Não foi possível publicar na Vercel.'
-npx.cmd --yes vercel@latest git connect --yes
-Assert-Success 'Site publicado, mas falta autorizar a integração GitHub na Vercel para os próximos deploys automáticos.'
+$PreviousErrorPreference = $ErrorActionPreference
+try {
+  $ErrorActionPreference = 'Continue'
+  $ConnectionOutput = @(npx.cmd --yes vercel@latest git connect --yes 2>&1)
+  $ConnectionExitCode = $LASTEXITCODE
+} finally {
+  $ErrorActionPreference = $PreviousErrorPreference
+}
+$ConnectionOutput | ForEach-Object { Write-Host $_ }
+$AlreadyConnected = ($ConnectionOutput -join "`n") -match 'is already connected to your project'
+if ($ConnectionExitCode -ne 0 -and -not $AlreadyConnected) {
+  throw 'Site publicado, mas a conexão GitHub não foi confirmada. Verifique a integração Git no painel da Vercel.'
+}
 Write-Host 'GitHub e Vercel publicados. A URL de produção aparece acima.'
