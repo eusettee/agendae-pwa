@@ -291,7 +291,27 @@ Códigos principais: `200` sucesso, `201` criação, `401` sessão ausente/invá
 
 O manifest configura nome, nome curto, cores, idioma, `start_url`, escopo, modo `standalone` e ícones de 192/512 pixels, incluindo uma versão maskable.
 
-O Service Worker precacheia HTML, CSS, JavaScript, catálogo, manifest e ícones. A navegação tenta a rede e usa o HTML armazenado quando estiver offline. Recursos essenciais usam cache; chamadas `/api/` e métodos de escrita não são interceptados. Versões antigas do cache da aplicação são removidas na ativação.
+### Service Worker → Cache → App Shell
+
+```mermaid
+flowchart LR
+    A[Primeiro acesso online] --> B[Service Worker: install]
+    B --> C[Cache agendae-shell-v3]
+    C --> D[App Shell: HTML, CSS, JS, catálogo e ícones]
+    E[Reabrir com ou sem internet] --> F[Service Worker: fetch]
+    F --> C
+    D --> G[Interface, navegação e leitura já disponíveis]
+```
+
+O **App Shell** é a estrutura principal da aplicação: menu, cabeçalho, telas, estilos, scripts, instruções, catálogo público e ícones. Todas as telas estão no HTML precacheado; não é preciso visitar cada uma antes de desconectar.
+
+Em `public/sw.js`, `APP_SHELL_FILES` lista os recursos e `install` só termina quando todos estão armazenados. O cache tem versão própria, `agendae-shell-v3`. Na ativação, o worker assume o controle e remove versões antigas da aplicação.
+
+Na navegação e nos arquivos do shell, a estratégia é **Cache First**: a interface abre pelo cache, sem esperar uma conexão lenta ou uma API responder. Uma busca de rede só é necessária para recuperar um recurso público ausente. A inicialização e o registro do worker foram separados: `public/js/pwa.js` registra o Service Worker e verifica se todos os arquivos do shell estão em cache antes de indicar que o offline está pronto.
+
+Sem conexão, o usuário pode reabrir a aplicação, navegar por Início, Agendar, Consultas, Triagem, Conta e Ajuda, ler orientações e consultar o catálogo. Também pode executar o CRUD de demonstração. A tela informa o estado offline. APIs, autenticação e IA não fazem parte do cache e suas operações precisam de internet; abrir essas telas e ler suas informações continua possível offline.
+
+A preparação exige um primeiro acesso online concluído. Um dispositivo que nunca acessou o site não possui os arquivos para abri-lo sem rede. Se o navegador apagar o armazenamento, será necessário preparar o cache novamente.
 
 Para demonstrar offline:
 
@@ -319,7 +339,7 @@ npm run test:e2e
 | Navegador | Cadastro/login, CRUD, persistência, edição offline, manifest, cache e layouts |
 | Instalação | Elegibilidade da PWA no Chrome fora do modo anônimo |
 
-Na última validação funcional, passaram **5 testes de regras/API/IA e 4 testes de navegador**. Os testes de persistência usam SQLite local; não representam teste de conexão com PostgreSQL remoto. As respostas da OpenAI são simuladas; não comprovam funcionamento com uma chave real ou adequação clínica.
+Na última validação funcional, passaram **5 testes de regras/API/IA e 5 testes de navegador**. A suíte também fecha a página e reabre offline, verifica telas não visitadas anteriormente, leitura, estilos e navegação sem requisições à API. Os testes de persistência usam SQLite local; não representam teste de conexão com PostgreSQL remoto. As respostas da OpenAI são simuladas; não comprovam funcionamento com uma chave real ou adequação clínica.
 
 O Playwright usa Chrome instalado e a porta 3000. Ele reutiliza um servidor existente; confirme que esse servidor executa a versão atual do projeto. As capturas ficam em `artifacts/`, e os relatórios temporários são ignorados pelo Git.
 

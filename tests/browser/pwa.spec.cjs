@@ -48,7 +48,7 @@ test('manifest, cache, instalação oferecida e layouts desktop e celular', asyn
   expect(manifest.icons.some(icon => icon.sizes === '192x192')).toBeTruthy();
   expect(manifest.icons.some(icon => icon.sizes === '512x512')).toBeTruthy();
   expect(manifest.display).toBe('standalone');
-  const cached = await page.evaluate(async () => (await (await caches.open('agendae-v2')).keys()).map(request => new URL(request.url).pathname));
+  const cached = await page.evaluate(async () => (await (await caches.open('agendae-shell-v3')).keys()).map(request => new URL(request.url).pathname));
   expect(cached).toContain('/index.html'); expect(cached).toContain('/css/style.css'); expect(cached).toContain('/js/app.js');
   const session = await page.context().newCDPSession(page);
   await session.send('Page.enable');
@@ -64,6 +64,39 @@ test('manifest, cache, instalação oferecida e layouts desktop e celular', asyn
   await page.screenshot({ path: 'artifacts/mobile-agendar.png', fullPage: true });
   offered = await page.evaluate(() => Boolean(window.installOffered));
   console.log('Instalação oferecida pelo Chrome:', offered);
+});
+test('App Shell abre todas as telas offline após fechar a página, sem depender da API', async ({ page, context }) => {
+  await page.route('**/api/**', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'API indisponível no teste' }) }));
+  await page.goto('/');
+  await expect(page.locator('#app-shell-status')).toHaveText('Pronto para usar offline');
+  const assets = await page.evaluate(async () => (await (await caches.open('agendae-shell-v3')).keys()).map(request => new URL(request.url).pathname));
+  expect(assets).toContain('/js/pwa.js');
+  expect(assets.some(path => path.startsWith('/api/'))).toBeFalsy();
+  await page.close();
+  await context.setOffline(true);
+  const offlinePage = await context.newPage();
+  const errors = []; const apiRequests = [];
+  offlinePage.on('pageerror', error => errors.push(error.message));
+  offlinePage.on('request', request => { if (new URL(request.url()).pathname.startsWith('/api/')) apiRequests.push(request.url()); });
+  await offlinePage.goto('http://localhost:3000/#inicio');
+  await expect(offlinePage.locator('#offline-banner')).toBeVisible();
+  await expect(offlinePage.locator('#connection')).toHaveText('Offline');
+  await expect(offlinePage.locator('#app-shell-status')).toHaveText('Pronto para usar offline');
+  const pages = [['inicio', 'Cuidar de você'], ['agendar', 'Agendar consulta'], ['consultas', 'Minhas consultas'], ['triagem', 'Pré-triagem com IA'], ['ajuda', 'Como funciona']];
+  for (const [id, heading] of pages) {
+    await offlinePage.locator(`[data-page=${id}]`).click();
+    await expect(offlinePage.locator(`#${id} h1`)).toContainText(heading);
+    await expect(offlinePage.locator(`[data-page=${id}]`)).toHaveAttribute('aria-current', 'page');
+  }
+  await expect(offlinePage.locator('#offline-ready')).toHaveText('Modo offline pronto');
+  await offlinePage.locator('#account-link').click();
+  await expect(offlinePage.locator('#conta h1')).toHaveText('Entrar');
+  await offlinePage.locator('[data-page=agendar]').click();
+  expect(await offlinePage.locator('#specialty option').count()).toBe(5);
+  expect(await offlinePage.locator('#professional option').count()).toBeGreaterThan(0);
+  expect(await offlinePage.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--green').trim())).toBe('#125c4c');
+  expect(apiRequests).toEqual([]);
+  expect(errors).toEqual([]);
 });
 test('cadastro, login, CRUD da conta e pré-triagem com alternativa sem chave', async ({ page }) => {
   await page.goto('/');

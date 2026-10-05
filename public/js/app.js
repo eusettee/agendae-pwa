@@ -166,6 +166,7 @@ function navigate(focus = true) {
 function updateConnection() {
   $('#connection').textContent = navigator.onLine ? 'Online' : 'Offline';
   $('#connection').classList.toggle('offline', !navigator.onLine);
+  $('#offline-banner').hidden = navigator.onLine;
 }
 
 function askConfirmation(title, description, action) {
@@ -204,7 +205,7 @@ async function submitBooking(event) {
   } finally { button.disabled = false; }
 }
 
-async function initialize() {
+function initialize() {
   appointments = readAppointments();
   $('#specialty').replaceChildren(...catalog.specialties.map(item => option(item, item)));
   $('#date').min = today(); $('#date').value = nextWeekday();
@@ -227,12 +228,11 @@ async function initialize() {
   $('#install').addEventListener('click', async () => { if (!installPrompt) return; await installPrompt.prompt(); installPrompt = undefined; $('#install').hidden = true; });
   window.addEventListener('appinstalled', () => { $('#install').hidden = true; showToast('Agendaê instalado.'); });
   initializeAccount();
-  if ('serviceWorker' in navigator) {
-    try {
-      await navigator.serviceWorker.register('/sw.js'); await navigator.serviceWorker.ready;
-      $('#offline-ready').textContent = 'Modo offline pronto';
-    } catch { $('#offline-ready').textContent = 'Modo offline indisponível. Abra em localhost ou HTTPS.'; }
-  } else { $('#offline-ready').textContent = 'Este navegador não oferece modo offline.'; }
+  refreshCatalog();
+}
+
+async function refreshCatalog() {
+  if (!navigator.onLine) return;
   try {
     const response = await fetch('/api/catalog', { signal: AbortSignal.timeout(5000) });
     if (!response.ok) return;

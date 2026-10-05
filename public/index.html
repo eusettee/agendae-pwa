@@ -8,11 +8,12 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/css/style.css?v=2">
+  <link rel="stylesheet" href="/css/style.css?v=3">
   <title>Agendaê · Saúde na Palma da Mão</title>
-  <script defer src="/js/catalog.js?v=2"></script>
-  <script defer src="/js/account.js?v=2"></script>
-  <script defer src="/js/app.js?v=2"></script>
+  <script defer src="/js/catalog.js?v=3"></script>
+  <script defer src="/js/account.js?v=3"></script>
+  <script defer src="/js/pwa.js?v=3"></script>
+  <script defer src="/js/app.js?v=3"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Pular para o conteúdo</a>
@@ -31,11 +32,12 @@
   <div class="workspace">
     <header class="topbar"><a id="account-link" href="#conta">Entrar / criar conta</a><div class="topbar-actions"><button id="logout" class="button small secondary" hidden>Sair</button><span id="connection" class="connection" role="status">Online</span><button id="install" class="button small secondary" hidden>Instalar app</button></div></header>
     <main id="main" tabindex="-1">
+      <p id="offline-banner" class="offline-banner" role="status" hidden>Você está offline. As telas, orientações e a agenda de demonstração continuam disponíveis.</p>
       <section id="inicio" class="page">
         <div class="page-heading"><div><p class="eyebrow">BEM-VINDO AO AGENDAÊ</p><h1>Cuidar de você<br>pode ser simples.</h1><p class="muted">Sua próxima consulta, a poucos passos.</p></div><span class="pill">PWA · versão inicial</span></div>
         <div class="hero"><div><span class="hero-label">MAIS TEMPO PARA VOCÊ</span><h2>O primeiro passo<br>para o seu cuidado.</h2><p>Escolha uma especialidade, encontre uma unidade<br class="desktop-break"> e organize sua consulta em um só lugar.</p><a href="#agendar" class="button light">Agendar consulta <span aria-hidden="true">↗</span></a></div><div class="hero-art" aria-hidden="true"><div class="art-ring"></div><div class="art-card"><span class="art-cross">+</span><div class="art-line"></div><div class="art-line short"></div><span class="art-check">✓</span></div><span class="art-star">✳</span></div></div>
         <div class="section-heading"><h2>Seu cuidado, organizado</h2><a href="#consultas">Ver consultas →</a></div>
-        <div class="overview"><article class="card upcoming"><div class="card-icon" aria-hidden="true">▤</div><p class="small-label">PRÓXIMA CONSULTA</p><div id="next-appointment"><h3>Sua agenda começa aqui</h3><p class="muted">Quando agendar, os detalhes aparecem aqui.</p></div></article><article class="card offline-card"><div class="card-icon" aria-hidden="true">✓</div><h3>Com você, até offline.</h3><p class="muted">Abra uma vez com internet. Depois, consulte e organize sua agenda mesmo sem conexão.</p><span class="local-label">Salvo neste dispositivo</span></article></div>
+        <div class="overview"><article class="card upcoming"><div class="card-icon" aria-hidden="true">▤</div><p class="small-label">PRÓXIMA CONSULTA</p><div id="next-appointment"><h3>Sua agenda começa aqui</h3><p class="muted">Quando agendar, os detalhes aparecem aqui.</p></div></article><article class="card offline-card"><div class="card-icon" aria-hidden="true">✓</div><h3>Com você, até offline.</h3><p class="muted">Abra uma vez com internet. Depois, navegue pelas telas, leia as orientações e organize sua agenda de demonstração sem conexão.</p><span id="app-shell-status" class="local-label">Acesso offline em preparação</span></article></div>
         <p class="demo-note">Demonstração acadêmica. Unidades, profissionais e horários fictícios. Nenhuma consulta real é marcada.</p>
       </section>
       <section id="agendar" class="page" hidden>

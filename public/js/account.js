@@ -105,6 +105,7 @@ async function initializeAccount() {
       showToast('Você saiu da sua conta.');
     } catch (error) { showToast(error.message); }
   });
+  if (!navigator.onLine) return;
   try {
     const status = await apiRequest('status');
     if (!status.accounts) {
