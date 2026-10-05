@@ -4,6 +4,8 @@ App Android/iOS em Expo SDK 57, React Native, TypeScript e Expo Router. Usa o me
 
 ## Abrir no celular
 
+Na raiz do repositório, `./iniciar-expo.ps1` inicia um túnel público para compartilhar o QR Code com pessoas em outras redes. O script escolhe uma porta livre. Para usar somente a rede local, execute `./iniciar-expo.ps1 -RedeLocal`. O túnel funciona enquanto o computador e o servidor Expo estiverem ligados; o endereço pode mudar ao reiniciar. Cada pessoa precisa de um Expo Go compatível com SDK 57 e deve usar sua própria conta Agendaê para as consultas.
+
 Na pasta `mobile`:
 
 ```sh
