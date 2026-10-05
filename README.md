@@ -68,6 +68,12 @@ A aplicação oferece seis profissionais e horários fixos de demonstração. Al
 
 Não existe importação ou sincronização automática entre os modos. Dados da conta não são gravados no armazenamento local. Apagar os dados da demonstração em **Ajuda** não exclui a conta nem suas consultas no servidor.
 
+### Atualização entre usuários
+
+Com Firebase configurado, as modificações são persistidas imediatamente no servidor. A interface consulta a agenda da conta e os horários compartilhados automaticamente a cada **5 segundos**, enquanto estiver visível e online, e ao retornar à aba ou recuperar conexão. É atualização periódica, sem listener de tempo real do Firebase. Abas ocultas e modo offline não fazem essas consultas. Dados iguais não redesenham a agenda; o formulário mantém seus campos.
+
+Cada usuário acessa e altera apenas suas próprias consultas. Todos compartilham a disponibilidade dos profissionais. Duas tentativas simultâneas pelo mesmo horário resultam em uma reserva aceita e um conflito, mesmo antes da próxima atualização visual. O modo sem login continua sendo uma demonstração local, sem compartilhamento entre dispositivos. A consulta periódica gera leituras no Firestore conforme o número de usuários ativos.
+
 ## Executar localmente
 
 Requisitos: **Node.js 24.x**, npm e um navegador atual. O Google Chrome instalado é necessário para os testes de navegador.
@@ -308,7 +314,7 @@ O manifest configura nome, nome curto, cores, idioma, `start_url`, escopo, modo 
 ```mermaid
 flowchart LR
     A[Primeiro acesso online] --> B[Service Worker: install]
-    B --> C[Cache agendae-shell-v3]
+    B --> C[Cache agendae-shell-v4]
     C --> D[App Shell: HTML, CSS, JS, catálogo e ícones]
     E[Reabrir com ou sem internet] --> F[Service Worker: fetch]
     F --> C
@@ -317,7 +323,7 @@ flowchart LR
 
 O **App Shell** é a estrutura principal da aplicação: menu, cabeçalho, telas, estilos, scripts, instruções, catálogo público e ícones. Todas as telas estão no HTML precacheado; não é preciso visitar cada uma antes de desconectar.
 
-Em `public/sw.js`, `APP_SHELL_FILES` lista os recursos e `install` só termina quando todos estão armazenados. O cache tem versão própria, `agendae-shell-v3`. Na ativação, o worker assume o controle e remove versões antigas da aplicação.
+Em `public/sw.js`, `APP_SHELL_FILES` lista os recursos e `install` só termina quando todos estão armazenados. O cache tem versão própria, `agendae-shell-v4`. Na ativação, o worker assume o controle e remove versões antigas da aplicação.
 
 Na navegação e nos arquivos do shell, a estratégia é **Cache First**: a interface abre pelo cache, sem esperar uma conexão lenta ou uma API responder. Uma busca de rede só é necessária para recuperar um recurso público ausente. A inicialização e o registro do worker foram separados: `public/js/pwa.js` registra o Service Worker e verifica se todos os arquivos do shell estão em cache antes de indicar que o offline está pronto.
 
@@ -352,7 +358,7 @@ npm run test:e2e
 | Navegador | Cadastro/login, CRUD, persistência, edição offline, manifest, cache e layouts |
 | Instalação | Elegibilidade da PWA no Chrome fora do modo anônimo |
 
-Na última validação funcional, passaram **10 testes de regras/API/IA/Firestore e 5 testes de navegador**. A suíte fecha a página e reabre offline, verifica todas as telas, leitura, estilos e navegação sem chamadas à API. Os testes usam SQLite e um simulador do contrato Firestore; não comprovam conexão com o Firebase real. As respostas OpenAI também são simuladas.
+Na última validação funcional, passaram **10 testes de regras/API/IA/Firestore e 6 testes de navegador**. A suíte fecha a página e reabre offline, verifica todas as telas, leitura, estilos e navegação sem chamadas à API. Os testes usam SQLite e um simulador do contrato Firestore; não comprovam conexão com o Firebase real. As respostas OpenAI também são simuladas.
 
 Após configurar `.env.local` com as credenciais, execute `npm run test:firebase` para verificar conexão, concorrência, isolamento, edição e exclusão no Firestore real. O teste cria e remove consultas com identificadores exclusivos. A conexão real permanece pendente até o projeto estar configurado.
 

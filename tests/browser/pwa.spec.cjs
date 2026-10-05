@@ -48,7 +48,7 @@ test('manifest, cache, instalação oferecida e layouts desktop e celular', asyn
   expect(manifest.icons.some(icon => icon.sizes === '192x192')).toBeTruthy();
   expect(manifest.icons.some(icon => icon.sizes === '512x512')).toBeTruthy();
   expect(manifest.display).toBe('standalone');
-  const cached = await page.evaluate(async () => (await (await caches.open('agendae-shell-v3')).keys()).map(request => new URL(request.url).pathname));
+  const cached = await page.evaluate(async () => (await (await caches.open('agendae-shell-v4')).keys()).map(request => new URL(request.url).pathname));
   expect(cached).toContain('/index.html'); expect(cached).toContain('/css/style.css'); expect(cached).toContain('/js/app.js');
   const session = await page.context().newCDPSession(page);
   await session.send('Page.enable');
@@ -69,7 +69,7 @@ test('App Shell abre todas as telas offline após fechar a página, sem depender
   await page.route('**/api/**', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'API indisponível no teste' }) }));
   await page.goto('/');
   await expect(page.locator('#app-shell-status')).toHaveText('Pronto para usar offline');
-  const assets = await page.evaluate(async () => (await (await caches.open('agendae-shell-v3')).keys()).map(request => new URL(request.url).pathname));
+  const assets = await page.evaluate(async () => (await (await caches.open('agendae-shell-v4')).keys()).map(request => new URL(request.url).pathname));
   expect(assets).toContain('/js/pwa.js');
   expect(assets.some(path => path.startsWith('/api/'))).toBeFalsy();
   await page.close();
@@ -148,6 +148,25 @@ test('cadastro, login, CRUD da conta e pré-triagem com alternativa sem chave', 
   await expect(page.locator('#account-link')).toHaveText('Olá, Paciente Conta');
   await page.getByRole('button', { name: 'Sair', exact: true }).click();
 });
+test('atualização automática recebe reservas e cancelamentos de outra conta', async ({ page, browser }) => {
+  const other = await browser.newContext();
+  const register = (request, name) => request.post('http://localhost:3000/api/auth', { data: { action: 'register', name, email: `${crypto.randomUUID()}@example.test`, password: 'teste-seguro-123', consent: true } });
+  try {
+    expect((await register(page.context().request, 'Paciente Atualização')).ok()).toBeTruthy();
+    expect((await register(other.request, 'Outra Conta')).ok()).toBeTruthy();
+    await page.goto('/#agendar');
+    await expect(page.locator('#account-link')).toContainText('Paciente Atualização');
+    const booking = await page.evaluate(() => ({ clinicId: document.querySelector('#clinic').value, professionalId: document.querySelector('#professional').value, date: document.querySelector('#date').value, time: '09:00' }));
+    const saved = await other.request.post('http://localhost:3000/api/appointments', { data: booking });
+    expect(saved.ok()).toBeTruthy();
+    const { appointment } = await saved.json();
+    await expect(page.getByLabel('09:00', { exact: true })).toBeDisabled({ timeout: 12000 });
+    expect(await page.evaluate(() => appointments.length)).toBe(0);
+    await other.request.delete('http://localhost:3000/api/appointments', { data: { id: appointment.id } });
+    await expect(page.getByLabel('09:00', { exact: true })).toBeEnabled({ timeout: 12000 });
+  } finally { await other.close(); }
+});
+
 test('Chrome com perfil normal reconhece a PWA como instalável', async () => {
   const context = await chromium.launchPersistentContext('.test-browser', { channel: 'chrome', headless: true });
   try {

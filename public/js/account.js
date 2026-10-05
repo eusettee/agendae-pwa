@@ -2,6 +2,18 @@ let currentAccount = null;
 let registerMode = false;
 let occupiedSlots = [];
 let availabilityKey = '';
+let liveRefreshPending = false;
+const LIVE_REFRESH_MS = 5000;
+
+async function refreshSharedData() {
+  if (!currentAccount || !navigator.onLine || document.hidden || liveRefreshPending) return;
+  liveRefreshPending = true;
+  try {
+    await loadAccountAppointments();
+    if (location.hash === '#agendar') await loadAvailability();
+  } catch { /* A próxima atualização tenta novamente sem interromper o formulário. */ }
+  finally { liveRefreshPending = false; }
+}
 
 async function apiRequest(path, method = 'GET', body) {
   if (!navigator.onLine) throw new Error('Esta ação precisa de internet. O modo demonstração continua disponível offline.');
@@ -28,9 +40,13 @@ function updateAccountUI() {
 }
 
 async function loadAccountAppointments() {
+  const accountId = currentAccount?.id;
+  if (!accountId) return;
   const result = await apiRequest('appointments');
+  if (currentAccount?.id !== accountId) return;
+  if (JSON.stringify(appointments) === JSON.stringify(result.appointments)) return;
   appointments = result.appointments;
-  renderAppointments(); renderSlots();
+  renderAppointments(); renderSlots(false);
 }
 
 async function loadAvailability() {
@@ -94,6 +110,11 @@ async function submitTriage(event) {
 }
 
 async function initializeAccount() {
+  setInterval(refreshSharedData, LIVE_REFRESH_MS);
+  window.addEventListener('online', refreshSharedData);
+  window.addEventListener('focus', refreshSharedData);
+  window.addEventListener('hashchange', refreshSharedData);
+  document.addEventListener('visibilitychange', refreshSharedData);
   $('#auth-toggle').addEventListener('click', toggleAuth);
   $('#auth-form').addEventListener('submit', submitAuth);
   $('#triage-form').addEventListener('submit', submitTriage);

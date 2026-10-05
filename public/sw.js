@@ -1,5 +1,5 @@
 // App Shell: estrutura, navegação e recursos públicos independentes da API.
-const APP_SHELL_CACHE = 'agendae-shell-v3';
+const APP_SHELL_CACHE = 'agendae-shell-v4';
 const APP_SHELL_DOCUMENT = '/index.html';
 const APP_SHELL_FILES = [APP_SHELL_DOCUMENT, '/css/style.css', '/js/app.js', '/js/account.js', '/js/catalog.js', '/js/pwa.js', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable-512.png'];
 self.addEventListener('install', event => {
