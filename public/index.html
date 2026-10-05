@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#125c4c">
+  <meta name="description" content="Agendaê: saúde na palma da mão. Demonstração de agendamento de consultas com acesso offline.">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/css/style.css">
+  <title>Agendaê · Saúde na Palma da Mão</title>
+  <script defer src="/js/catalog.js"></script>
+  <script defer src="/js/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Pular para o conteúdo</a>
+  <aside class="sidebar">
+    <a class="brand" href="#inicio"><span class="brand-mark" aria-hidden="true">+</span>agendaê<span class="brand-dot">.</span></a>
+    <p class="brand-caption">Saúde na palma da mão</p>
+    <nav aria-label="Navegação principal">
+      <a href="#inicio" data-page="inicio"><span aria-hidden="true">⌂</span> Início</a>
+      <a href="#agendar" data-page="agendar"><span aria-hidden="true">＋</span> Agendar</a>
+      <a href="#consultas" data-page="consultas"><span aria-hidden="true">▤</span> Consultas</a>
+      <a href="#ajuda" data-page="ajuda"><span aria-hidden="true">?</span> Ajuda</a>
+    </nav>
+    <div class="sidebar-note"><span class="small-label">PROJETO INTEGRADOR</span><p>Um cuidado a menos<br>para você se preocupar.</p><small>SENAC · Primeira etapa</small></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><span>SEU ESPAÇO DE CUIDADO</span><div class="topbar-actions"><span id="connection" class="connection" role="status">Online</span><button id="install" class="button small secondary" hidden>Instalar app</button></div></header>
+    <main id="main" tabindex="-1">
+      <section id="inicio" class="page">
+        <div class="page-heading"><div><p class="eyebrow">BEM-VINDO AO AGENDAÊ</p><h1>Cuidar de você<br>pode ser simples.</h1><p class="muted">Sua próxima consulta, a poucos passos.</p></div><span class="pill">PWA · versão inicial</span></div>
+        <div class="hero"><div><span class="hero-label">MAIS TEMPO PARA VOCÊ</span><h2>O primeiro passo<br>para o seu cuidado.</h2><p>Escolha uma especialidade, encontre uma unidade<br class="desktop-break"> e organize sua consulta em um só lugar.</p><a href="#agendar" class="button light">Agendar consulta <span aria-hidden="true">↗</span></a></div><div class="hero-art" aria-hidden="true"><div class="art-ring"></div><div class="art-card"><span class="art-cross">+</span><div class="art-line"></div><div class="art-line short"></div><span class="art-check">✓</span></div><span class="art-star">✳</span></div></div>
+        <div class="section-heading"><h2>Seu cuidado, organizado</h2><a href="#consultas">Ver consultas →</a></div>
+        <div class="overview"><article class="card upcoming"><div class="card-icon" aria-hidden="true">▤</div><p class="small-label">PRÓXIMA CONSULTA</p><div id="next-appointment"><h3>Sua agenda começa aqui</h3><p class="muted">Quando agendar, os detalhes aparecem aqui.</p></div></article><article class="card offline-card"><div class="card-icon" aria-hidden="true">✓</div><h3>Com você, até offline.</h3><p class="muted">Abra uma vez com internet. Depois, consulte e organize sua agenda mesmo sem conexão.</p><span class="local-label">Salvo neste dispositivo</span></article></div>
+        <p class="demo-note">Demonstração acadêmica. Unidades, profissionais e horários fictícios. Nenhuma consulta real é marcada.</p>
+      </section>
+      <section id="agendar" class="page" hidden>
+        <p class="eyebrow">UM PASSO DE CADA VEZ</p><h1>Agendar consulta</h1><p class="muted intro">Escolha os detalhes. Nós organizamos sua agenda.</p>
+        <div class="booking-layout"><form id="booking-form" class="card booking-form"><h2>Detalhes da consulta</h2><label for="patient">Como podemos chamar você?</label><input id="patient" name="patient" placeholder="Seu primeiro nome" autocomplete="given-name" minlength="2" maxlength="80" required>
+          <div class="field-row"><div><label for="specialty">Especialidade</label><select id="specialty" required></select></div><div><label for="clinic">Unidade</label><select id="clinic" required></select></div></div>
+          <label for="professional">Profissional</label><select id="professional" required></select>
+          <label for="date">Data</label><input id="date" type="date" required><p class="field-hint">Atendimento de segunda a sexta.</p>
+          <fieldset><legend>Horário</legend><div id="time-slots" class="time-slots"></div></fieldset>
+          <label class="checkbox-label"><input id="consent" type="checkbox" required><span>Concordo em salvar esta demonstração neste dispositivo.</span></label>
+          <p id="form-error" class="error" role="alert" hidden></p><button type="submit" class="button" id="submit-booking">Salvar consulta de demonstração <span aria-hidden="true">→</span></button>
+        </form><aside class="booking-aside"><span class="aside-symbol" aria-hidden="true">✳</span><h2>Menos etapas.<br>Mais cuidado.</h2><p>Escolha a especialidade manualmente. Esta versão não faz diagnóstico ou pré-triagem com IA.</p><hr><p>Seu nome e sua agenda ficam apenas neste navegador. Use dados fictícios na apresentação.</p><small>Não substitui avaliação médica.<br>Em emergência, ligue 192.</small></aside></div>
+      </section>
+      <section id="consultas" class="page" hidden><div class="section-heading"><div><p class="eyebrow">TUDO EM UM SÓ LUGAR</p><h1>Minhas consultas</h1></div><a href="#agendar" class="button">Nova consulta +</a></div><p class="muted intro">Sua agenda de demonstração, salva neste dispositivo.</p><div id="appointment-list"></div></section>
+      <section id="ajuda" class="page" hidden><p class="eyebrow">SEMPRE POR PERTO</p><h1>Como funciona</h1><div class="help-grid"><article class="card"><span class="step">01</span><h2>Organize sua consulta</h2><p>Em Agendar, escolha especialidade, unidade, profissional, data e horário. Salve e veja em Consultas.</p></article><article class="card"><span class="step">02</span><h2>Use sem internet</h2><p>Após o primeiro acesso online e a preparação do modo offline, você pode abrir o app, salvar e cancelar consultas neste dispositivo.</p><p id="offline-ready" class="local-label">Preparando modo offline…</p></article><article class="card"><span class="step">03</span><h2>Instale o aplicativo</h2><p>No Chrome ou Edge, use “Instalar app” quando disponível. No iPhone, abra no Safari e use Compartilhar → Adicionar à Tela de Início.</p></article><article class="card"><span class="step">04</span><h2>Sobre esta versão</h2><p>Projeto Agendaê — Saúde na Palma da Mão. Protótipo acadêmico com dados fictícios, sem integração com clínicas reais.</p><p>Próximas etapas: contas de usuários, banco remoto, disponibilidade real e pré-triagem validada por profissionais.</p><button id="clear-data" class="button secondary">Apagar dados deste dispositivo</button></article></div></section>
+      <noscript><p>Ative o JavaScript para utilizar o agendamento.</p></noscript>
+    </main>
+    <footer>Agendaê · Saúde na Palma da Mão <span>Feito para simplificar.</span></footer>
+  </div>
+  <div id="toast" role="status" class="toast" hidden></div>
+  <dialog id="confirm-dialog"><h2 id="dialog-title">Cancelar consulta?</h2><p id="dialog-description">A consulta será removida deste dispositivo.</p><div class="dialog-actions"><button id="dialog-back" class="button secondary">Voltar</button><button id="dialog-confirm" class="button">Confirmar</button></div></dialog>
+</body>
+</html>
