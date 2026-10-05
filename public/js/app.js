@@ -5,6 +5,7 @@ let appointments = [];
 let installPrompt;
 let pendingAction;
 let toastTimer;
+let editingAppointmentId = null;
 const $ = selector => document.querySelector(selector);
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Recife' });
 
@@ -59,10 +60,12 @@ function populateProfessionals() {
 function isSlotUnavailable(date, time, professionalId) {
   const timestamp = Date.parse(`${date}T${time}:00-03:00`);
   const weekday = new Date(`${date}T12:00:00-03:00`).getUTCDay();
-  return !Number.isFinite(timestamp) || timestamp <= Date.now() || [0, 6].includes(weekday) || appointments.some(item => item.professionalId === professionalId && item.date === date && item.time === time);
+  const ownEdit = appointments.find(item => item.id === editingAppointmentId);
+  const reserved = currentAccount && availabilityKey === `${professionalId}|${date}` && occupiedSlots.includes(time) && !(ownEdit?.professionalId === professionalId && ownEdit?.date === date && ownEdit?.time === time);
+  return !Number.isFinite(timestamp) || timestamp <= Date.now() || [0, 6].includes(weekday) || reserved || appointments.some(item => item.id !== editingAppointmentId && item.professionalId === professionalId && item.date === date && item.time === time);
 }
 
-function renderSlots() {
+function renderSlots(fetchAvailability = true) {
   const previous = $('input[name=time]:checked')?.value;
   const container = $('#time-slots');
   container.replaceChildren();
@@ -78,6 +81,22 @@ function renderSlots() {
     if (radio.disabled) label.title = 'Horário indisponível';
     wrapper.append(radio, label); container.append(wrapper);
   }
+  if (fetchAvailability) loadAvailability();
+}
+
+function resetBooking() {
+  editingAppointmentId = null; $('#booking-form').reset(); $('#date').value = nextWeekday();
+  $('#cancel-edit').hidden = true; $('#form-error').hidden = true; updateAccountUI(); populateClinics();
+}
+
+function editAppointment(item) {
+  editingAppointmentId = item.id;
+  const info = details(item); $('#patient').value = item.patient;
+  $('#specialty').value = info.professional.specialty; populateClinics();
+  $('#clinic').value = item.clinicId; populateProfessionals(); $('#professional').value = item.professionalId;
+  $('#date').value = item.date; renderSlots();
+  const radio = document.getElementById(`time-${item.time.replace(':','')}`); if (radio && !radio.disabled) radio.checked = true;
+  $('#consent').checked = false; $('#submit-booking').textContent = 'Salvar alterações →'; $('#cancel-edit').hidden = false; location.hash = 'agendar';
 }
 
 function details(item) {
@@ -105,14 +124,21 @@ function renderAppointments() {
     const content = document.createElement('div');
     const tag = document.createElement('span'); tag.className = 'appointment-date'; tag.textContent = `${info.date} · ${item.time}`;
     const heading = document.createElement('h2'); heading.textContent = info.professional.specialty;
-    content.append(tag, heading, paragraph(`${info.professional.name} · ${info.clinic.name}`, 'muted'), paragraph(`Para ${item.patient}`, 'muted'), paragraph('Demonstração · salvo neste dispositivo', 'local-label'));
+    content.append(tag, heading, paragraph(`${info.professional.name} · ${info.clinic.name}`, 'muted'), paragraph(`Para ${item.patient}`, 'muted'), paragraph(currentAccount ? 'Demonstração · salvo na sua conta' : 'Demonstração · salvo neste dispositivo', 'local-label'));
     const button = document.createElement('button'); button.type = 'button'; button.className = 'button secondary'; button.textContent = 'Cancelar';
     button.setAttribute('aria-label', `Cancelar consulta de ${item.patient} em ${info.date} às ${item.time}`);
-    button.addEventListener('click', () => askConfirmation('Cancelar consulta?', 'A consulta será removida deste dispositivo.', () => {
-      try { saveAppointments(appointments.filter(appointment => appointment.id !== item.id)); renderAppointments(); renderSlots(); showToast('Consulta cancelada. Horário liberado.'); }
+    button.addEventListener('click', () => askConfirmation('Cancelar consulta?', currentAccount ? 'A consulta será removida da sua conta.' : 'A consulta será removida deste dispositivo.', async () => {
+      try {
+        if (currentAccount) { await apiRequest('appointments', 'DELETE', { id: item.id }); await loadAccountAppointments(); }
+        else { saveAppointments(appointments.filter(appointment => appointment.id !== item.id)); renderAppointments(); renderSlots(); }
+        if (editingAppointmentId === item.id) resetBooking(); showToast('Consulta cancelada. Horário liberado.');
+      }
       catch (error) { showToast(error.message); }
     }));
-    article.append(content, button); list.append(article);
+    const actions = document.createElement('div'); actions.className = 'appointment-actions';
+    const edit = document.createElement('button'); edit.className = 'button secondary'; edit.textContent = 'Editar'; edit.setAttribute('aria-label', `Editar consulta de ${item.patient}`);
+    edit.addEventListener('click', () => editAppointment(item)); actions.append(edit, button);
+    article.append(content, actions); list.append(article);
   }
   const next = sorted.find(item => Date.parse(`${item.date}T${item.time}:00-03:00`) > Date.now());
   const container = $('#next-appointment'); container.replaceChildren();
@@ -127,7 +153,7 @@ function renderAppointments() {
 
 function navigate(focus = true) {
   const requested = location.hash.slice(1) || 'inicio';
-  const page = ['inicio', 'agendar', 'consultas', 'ajuda'].includes(requested) ? requested : 'inicio';
+  const page = ['inicio', 'agendar', 'consultas', 'ajuda', 'conta', 'triagem'].includes(requested) ? requested : 'inicio';
   document.querySelectorAll('.page').forEach(section => { section.hidden = section.id !== page; });
   document.querySelectorAll('[data-page]').forEach(link => {
     link.classList.toggle('active', link.dataset.page === page);
@@ -161,27 +187,18 @@ async function submitBooking(event) {
     if (!$('#consent').checked) throw new Error('Confirme o armazenamento neste dispositivo.');
     if (!time || isSlotUnavailable(input.date, time, input.professionalId)) throw new Error('Escolha um horário disponível de segunda a sexta.');
     button.disabled = true;
-    let id = crypto.randomUUID();
-    if (navigator.onLine) {
-      let response;
-      try {
-        response = await fetch('/api/appointments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input), signal: AbortSignal.timeout(5000) });
-      } catch { /* Sem API, a demonstração continua com validação local. */ }
-      if (response) {
-        if (!response.ok) {
-          const result = await response.json().catch(() => ({}));
-          throw new Error(result.error || 'Não foi possível validar a consulta. Tente novamente.');
-        }
-        const result = await response.json(); id = result.id;
-      }
+    if (currentAccount) {
+      await apiRequest('appointments', editingAppointmentId ? 'PUT' : 'POST', { ...input, id: editingAppointmentId });
+      await loadAccountAppointments();
+    } else {
+      appointments = readAppointments();
+      if (isSlotUnavailable(input.date, time, input.professionalId)) throw new Error('Esse horário já foi salvo. Escolha outro.');
+      const item = { ...input, id: editingAppointmentId || crypto.randomUUID() };
+      saveAppointments(editingAppointmentId ? appointments.map(appointment => appointment.id === editingAppointmentId ? item : appointment) : [...appointments, item]);
     }
-    // Releitura evita conflito entre abas antes de gravar.
-    appointments = readAppointments();
-    if (isSlotUnavailable(input.date, time, input.professionalId)) throw new Error('Esse horário já foi salvo. Escolha outro.');
-    saveAppointments([...appointments, { ...input, id }]);
-    $('#booking-form').reset(); $('#date').value = nextWeekday(); populateClinics();
+    resetBooking();
     renderAppointments(); location.hash = 'consultas';
-    showToast('Consulta de demonstração salva neste dispositivo.');
+    showToast(currentAccount ? 'Consulta salva na sua conta.' : 'Consulta de demonstração salva neste dispositivo.');
   } catch (error) {
     $('#form-error').textContent = error.message; $('#form-error').hidden = false;
   } finally { button.disabled = false; }
@@ -197,17 +214,19 @@ async function initialize() {
   $('#professional').addEventListener('change', renderSlots);
   $('#date').addEventListener('change', renderSlots);
   $('#booking-form').addEventListener('submit', submitBooking);
+  $('#cancel-edit').addEventListener('click', resetBooking);
   window.addEventListener('hashchange', () => navigate());
   window.addEventListener('online', updateConnection); window.addEventListener('offline', updateConnection);
-  window.addEventListener('storage', event => { if (event.key === STORAGE_KEY) { appointments = readAppointments(); renderAppointments(); renderSlots(); } });
+  window.addEventListener('storage', event => { if (!currentAccount && event.key === STORAGE_KEY) { appointments = readAppointments(); renderAppointments(); renderSlots(); } });
   $('#dialog-back').addEventListener('click', () => { pendingAction = undefined; $('#confirm-dialog').close(); });
   $('#dialog-confirm').addEventListener('click', () => { $('#confirm-dialog').close(); pendingAction?.(); pendingAction = undefined; });
   $('#clear-data').addEventListener('click', () => askConfirmation('Apagar todos os dados?', 'Todas as consultas desta demonstração serão apagadas deste dispositivo.', () => {
-    try { saveAppointments([]); renderAppointments(); renderSlots(); showToast('Dados apagados deste dispositivo.'); } catch (error) { showToast(error.message); }
+    try { localStorage.removeItem(STORAGE_KEY); if (!currentAccount) { appointments = []; renderAppointments(); renderSlots(); } showToast('Dados de demonstração apagados. Sua conta não foi alterada.'); } catch (error) { showToast(error.message); }
   }));
   window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); installPrompt = event; $('#install').hidden = false; });
   $('#install').addEventListener('click', async () => { if (!installPrompt) return; await installPrompt.prompt(); installPrompt = undefined; $('#install').hidden = true; });
   window.addEventListener('appinstalled', () => { $('#install').hidden = true; showToast('Agendaê instalado.'); });
+  initializeAccount();
   if ('serviceWorker' in navigator) {
     try {
       await navigator.serviceWorker.register('/sw.js'); await navigator.serviceWorker.ready;

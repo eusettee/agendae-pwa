@@ -1,12 +1,13 @@
 # Agendaê — Saúde na Palma da Mão
 
-Primeira etapa do P.I SENAC: PWA simples para organizar consultas de demonstração. Interface em português, responsiva, sem dependências de produção.
+P.I SENAC: PWA para agendamento acadêmico, com cadastro, login, CRUD de consultas e pré-triagem com OpenAI. Interface simples em português. Unidades e profissionais fictícios.
 
 ## Executar
 
-Requer Node.js 22 ou superior.
+Requer Node.js 24. Instale as dependências antes do primeiro acesso. Localmente, o banco SQLite é criado automaticamente em `data/` (ignorado pelo Git). Em produção, use PostgreSQL Neon ou Supabase.
 
 ```sh
+npm ci
 npm start
 ```
 
@@ -14,23 +15,38 @@ Abra **http://localhost:3000**. Não abra o HTML diretamente: Service Worker pre
 
 ## O que está pronto
 
-- Início, agendamento, minhas consultas e ajuda.
+- Início, agendamento, consultas, ajuda, cadastro/login e pré-triagem.
 - Especialidade → unidade → profissional → data → horário.
-- Salvar, listar e cancelar consultas; persistência local após fechar o navegador.
-- Validação de datas futuras, dias úteis e conflitos de horário neste dispositivo.
-- Backend Node.js: `GET /api/catalog` e `POST /api/appointments` (validação).
+- CRUD completo: criar, listar, editar/reagendar e excluir/cancelar consultas.
+- Na conta: persistência no banco, isolamento por usuário e restrição UNIQUE de horário, mesmo entre pacientes distintos.
+- Sem login: demonstração local, inclusive offline, sem integração com as consultas do servidor.
+- Senhas com scrypt, sessões opacas com expiração de sete dias e cookie HttpOnly/SameSite/Secure em produção; proteção de origem e limites de tentativas.
+- API: `GET/POST /api/auth`, `GET/POST/PUT/DELETE /api/appointments`, `GET /api/availability`, `GET /api/catalog`, `GET /api/status` e `POST /api/triage`.
 - Manifest com nome, cores, ícones 192/512, ícone maskable e standalone.
 - Service Worker com cache do HTML, CSS, JS, catálogo e ícones.
-- Operação offline após primeiro acesso: abrir, salvar, listar e cancelar.
+- Operação offline após primeiro acesso: abrir, criar, listar, editar e cancelar na demonstração. Contas e IA requerem internet.
+- IA autenticada via Responses API: JSON validado, especialidade permitida, consentimento e alternativa manual. Falhas e ausência de chave não são apresentadas como resultados de IA.
 - Instalação oferecida pelo navegador quando suportada; instruções em Ajuda.
 
 ## Escopo e dados
 
-**Demonstração acadêmica: nenhuma consulta real é marcada.** Todos os profissionais e unidades são fictícios. Use apenas um nome fictício. Os agendamentos ficam no `localStorage` deste navegador e podem ser apagados em Ajuda.
+**Demonstração acadêmica: nenhuma consulta real é marcada.** Todos os profissionais e unidades são fictícios. Use dados fictícios. Na conta, os agendamentos ficam no banco e só podem ser vistos e alterados pelo proprietário. Na demonstração sem login, ficam no `localStorage` deste navegador e podem ser apagados em Ajuda. Não há importação automática entre os dois modos.
 
-A API valida a entrada online e devolve um identificador. Ela **não persiste agendamentos**, não consulta disponibilidade real e não possui banco remoto. Offline, a validação ocorre no cliente. Conflitos são impedidos neste navegador; não há reserva compartilhada entre usuários. O catálogo do backend possui uma cópia local para funcionar offline. Para atualizar ambos, execute `node tools/generate-assets.cjs`.
+A API valida e persiste as consultas da conta. A restrição do banco impede conflitos de horário entre contas, e cancelar libera o horário. Dados de conta, cookies e respostas da API não entram no cache do Service Worker; a consulta offline é exclusiva do modo demonstração. O catálogo do backend possui cópia local: atualize com `node tools/generate-assets.cjs`.
 
-O checklist enviado no pedido define o escopo desta entrega. Os documentos serviram de referência para o domínio, o fluxo e a acessibilidade. O PDF descreve uma entrega mais ampla: JWT, perfis, banco e CRUD administrativo são próximos passos, junto com a IA do DOCX. Esta versão usa escolha manual da especialidade e não faz diagnóstico.
+Os documentos orientaram o domínio e o fluxo. A ampliação solicitada acrescentou login, persistência e IA. Ainda não existem painel administrativo, CRUD de clínicas/profissionais, CPF, recuperação de senha, verificação de e-mail ou integração com clínicas reais. As sessões são armazenadas no banco em vez de JWT. A pré-triagem é experimental, não faz diagnóstico, não prescreve e precisa de validação por profissionais.
+
+## Ativar banco e IA na Vercel
+
+1. Projeto `agendae-pwa` → Storage → Create Database → Neon (Free) ou Supabase. Conecte o banco ao projeto e ao ambiente Production.
+2. Em Settings → Environment Variables, confirme `DATABASE_URL` ou `POSTGRES_URL` com a conexão **pooled** do PostgreSQL e TLS, fornecida pelo provedor.
+3. Adicione `OPENAI_API_KEY` como segredo no ambiente Production. Opcional: `OPENAI_MODEL` (padrão `gpt-4.1-mini`). A chave nunca chega ao navegador. O consumo da API depende da conta OpenAI.
+4. Faça um novo deploy depois de configurar as variáveis. As tabelas de `migrations/001-initial.sql` são criadas no primeiro uso do banco.
+5. Crie uma conta fictícia, agende, edite, cancele e teste a pré-triagem. Sem banco configurado, o site informa que o login está em configuração; a demonstração continua disponível.
+
+Para usar as mesmas integrações localmente, copie `.env.example` para `.env.local` e preencha os valores. Nunca envie segredos ao GitHub ou ao chat.
+
+A pré-triagem envia apenas sintomas, duração e intensidade à OpenAI, com consentimento; não envia o e-mail ou nome da conta. O relato não é salvo no banco ou em cache. Cada conta pode fazer cinco consultas por hora. Não use dados clínicos reais na apresentação. A opção `store:false` desativa o armazenamento da resposta para recuperação na API, mas não equivale a garantia de retenção zero pelo provedor. A saída estruturada segue a [documentação oficial da OpenAI](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses).
 
 ## Estrutura
 
@@ -38,7 +54,8 @@ O checklist enviado no pedido define o escopo desta entrega. Os documentos servi
 public/         Front-end, manifest, service worker e ícones
 api/            Funções serverless compatíveis com Vercel
 lib/            Catálogo e regras de validação do backend
-server.cjs      Servidor local sem dependências
+server.cjs      Servidor local Node.js
+migrations/     Esquema SQL para SQLite/PostgreSQL
 tests/          Testes de regras, API e navegador
 tools/          Geração dos ícones e do catálogo offline
 vercel.json     Configuração da hospedagem
@@ -52,7 +69,7 @@ npm test
 npm run test:e2e
 ```
 
-Os testes de navegador usam o Google Chrome instalado. Validam persistência, conflito, cancelamento, agendamento e recarga offline; verificam o manifest, o cache e o layout em 390 px. Um perfil normal do Chrome confirmou a elegibilidade para instalação, sem erros; a instalação efetiva na interface do sistema deve ser demonstrada manualmente quando o navegador oferecer esse recurso. Capturas ficam em `artifacts/`.
+Os testes usam Google Chrome instalado. Verificam cadastro/login/logout, CRUD, isolamento entre contas, conflitos, persistência após recarregar, modo offline, cache, manifest e responsividade. A chamada OpenAI é simulada nos testes; a integração real só pode ser verificada com uma chave válida. O Chrome confirmou elegibilidade de instalação; a instalação efetiva deve ser demonstrada manualmente. Capturas ficam em `artifacts/`.
 
 ## Apresentação (3 minutos)
 
@@ -63,7 +80,8 @@ Os testes de navegador usam o Google Chrome instalado. Validam persistência, co
 5. Em Ajuda, esperar “Modo offline pronto”. No DevTools → Network, selecionar Offline e recarregar.
 6. Mostrar a consulta salva; cancelar e criar outra offline.
 7. Instalar usando o botão, se oferecido. Para verificar: DevTools → Application → Manifest e Service Workers. No iPhone: Safari → Compartilhar → Adicionar à Tela de Início.
-8. Próximos passos: autenticação, banco remoto, integração com clínicas e pré-triagem validada.
+8. Com banco e OpenAI configurados: criar conta, editar a consulta e mostrar a pré-triagem sugerindo uma especialidade.
+9. Próximos passos: perfis administrativos, recuperação de acesso, validação clínica e integração com unidades reais.
 
 ## Publicação no GitHub e Vercel
 

@@ -7,3 +7,8 @@ playwright-report/
 !.env.example
 agendae-pwa.zip
 .test-browser/
+data/
+
+.vercel
+.env*
+!.env.example

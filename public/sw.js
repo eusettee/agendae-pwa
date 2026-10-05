@@ -1,5 +1,5 @@
-const CACHE = 'agendae-v1';
-const ESSENTIALS = ['/', '/index.html', '/css/style.css', '/js/app.js', '/js/catalog.js', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable-512.png'];
+const CACHE = 'agendae-v2';
+const ESSENTIALS = ['/', '/index.html', '/css/style.css', '/js/app.js', '/js/account.js', '/js/catalog.js', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ESSENTIALS)).then(() => self.skipWaiting()));
 });
@@ -13,5 +13,5 @@ self.addEventListener('fetch', event => {
     event.respondWith(fetch(event.request).catch(() => caches.match('/index.html')));
     return;
   }
-  if (ESSENTIALS.includes(url.pathname)) event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));
+  if (ESSENTIALS.includes(url.pathname)) event.respondWith(caches.match(event.request, { ignoreSearch: true }).then(cached => cached || fetch(event.request)));
 });
