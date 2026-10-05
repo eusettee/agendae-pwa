@@ -8,6 +8,12 @@ playwright-report/
 agendae-pwa.zip
 .test-browser/
 data/
+*service-account*.json
+*firebase-adminsdk*.json
+*-firebase-adminsdk-*.json
+.firebase/
+firebase-debug.log
+firestore-debug.log
 
 .vercel
 .env*

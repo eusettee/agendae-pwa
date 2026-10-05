@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // O acesso ocorre apenas no backend via Admin SDK e IAM.
+    // As sessões da aplicação não são tokens Firebase Authentication.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

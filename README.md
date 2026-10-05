@@ -30,7 +30,7 @@ PWA acadêmica do Projeto Integrador do SENAC para simplificar o agendamento de 
 | --- | --- | --- |
 | Interface responsiva e navegação | Implementado | Navegador com JavaScript |
 | CRUD de consultas de demonstração | Implementado e testado | Disponível sem login; dados locais |
-| Cadastro, login e logout | Implementado e testado localmente | PostgreSQL configurado na Vercel para produção |
+| Cadastro, login e logout | Implementado e testado localmente | Cloud Firestore configurado na Vercel para produção |
 | CRUD de consultas da conta | Implementado e testado localmente | Login e banco conectado |
 | Disponibilidade compartilhada | Implementada | Banco impede duplicidade entre contas |
 | Pré-triagem com OpenAI | Integração preparada e testada com respostas simuladas | Banco, login e chave OpenAI |
@@ -40,7 +40,7 @@ PWA acadêmica do Projeto Integrador do SENAC para simplificar o agendamento de 
 
 Na última verificação em **05/10/2026**, o site estava publicado e `/api/status` informava `accounts: false` e `ai: false`: as variáveis do banco e da OpenAI ainda não estavam configuradas. A demonstração local permanecia disponível. Esse registro descreve aquela verificação; consulte o endpoint para conhecer a configuração atual. Ele indica presença de configuração, não garante conectividade com os provedores.
 
-A IA foi deixada preparada, sem ativação de chamadas reais. A criação do Neon gratuito exige o aceite dos termos do provedor na conta Vercel antes de prosseguir.
+A IA foi deixada preparada, sem chamadas reais. A integração Firebase está implementada e aguarda as credenciais do projeto na Vercel. Veja [o guia completo de configuração](docs/FIREBASE.md).
 
 ## Funcionalidades e fluxos
 
@@ -85,7 +85,7 @@ Abra **http://localhost:3000**. Não abra `index.html` diretamente: o Service Wo
 
 Sem variáveis de banco, o ambiente local cria SQLite em `data/agendae.sqlite` no primeiro uso. Você pode cadastrar uma conta e testar o CRUD sem serviços externos. `data/` é ignorada pelo Git. Essa alternativa não é usada na Vercel, onde arquivos locais não oferecem a persistência necessária.
 
-Para usar PostgreSQL e/ou OpenAI localmente, copie `.env.example` para `.env.local`:
+Para usar Cloud Firestore e/ou OpenAI localmente, copie `.env.example` para `.env.local`:
 
 ```powershell
 Copy-Item -LiteralPath .env.example -Destination .env.local
@@ -95,8 +95,9 @@ Preencha os valores e reinicie `npm start`. O comando carrega esse arquivo autom
 
 | Variável | Uso | Padrão/alternativa |
 | --- | --- | --- |
-| `DATABASE_URL` | Conexão PostgreSQL pooled fornecida pelo provedor | Preferida em produção |
-| `POSTGRES_URL` | Alternativa para a conexão PostgreSQL | Usada se `DATABASE_URL` não existir |
+| `FIREBASE_PROJECT_ID` | ID do projeto Firebase | Obrigatória em produção |
+| `FIREBASE_CLIENT_EMAIL` | E-mail da conta de serviço | Somente no backend |
+| `FIREBASE_PRIVATE_KEY` | Chave privada da conta de serviço | Somente no backend; aceita quebras de linha ou `\n` |
 | `OPENAI_API_KEY` | Chave privada da OpenAI no backend | Sem chave, oferece escolha manual |
 | `OPENAI_MODEL` | Modelo compatível com a saída estruturada utilizada | `gpt-4.1-mini` |
 | `PORT` | Porta do servidor local | `3000` |
@@ -109,7 +110,7 @@ flowchart LR
     U[Usuário] --> P[PWA: HTML, CSS e JavaScript]
     P --> D[Demonstração local: localStorage]
     P --> A[Backend Node.js: API REST]
-    A --> B[(PostgreSQL em produção / SQLite local)]
+    A --> B[(Cloud Firestore em produção / SQLite local)]
     A --> I[OpenAI: sugestão de especialidade]
     S[Service Worker] --> C[Cache de recursos públicos]
     C --> P
@@ -121,7 +122,7 @@ O navegador acessa o banco e a OpenAI somente pela API. As chaves permanecem no 
 | --- | --- | --- |
 | Frontend | HTML semântico, CSS e JavaScript sem framework | Navegação, formulários e interface responsiva |
 | Backend | Node.js, funções serverless Vercel | Sessões, validação, persistência e pré-triagem |
-| Banco de produção | PostgreSQL via `pg` | Usuários, sessões, consultas e limites de requisições |
+| Banco de produção | Cloud Firestore via Firebase Admin SDK | Usuários, sessões, consultas e limites de requisições |
 | Banco local | `node:sqlite` | Desenvolvimento e testes sem banco remoto |
 | IA | Responses API da OpenAI | Sugestão de especialidade com JSON estruturado |
 | PWA | Manifest e Service Worker | Instalação e cache offline |
@@ -142,10 +143,17 @@ agendae-pwa/
 │   ├── appointment.cjs      Validação de consultas
 │   ├── auth.cjs             Senhas, sessões e limites
 │   ├── catalog.cjs          Dados fictícios do catálogo
-│   ├── database.cjs         Adapter PostgreSQL/SQLite
+│   ├── database.cjs         SQLite local
+│   ├── firebase.cjs         Configuração privada Firebase Admin
+│   ├── store.cjs            Seleção de persistência
+│   ├── stores/              Repositórios Firestore e SQLite
 │   ├── http.cjs             Respostas e proteção de origem
 │   └── triage.cjs           Validação e chamada OpenAI
-├── migrations/              Esquema SQL versionado
+├── migrations/              Esquema SQLite local
+├── docs/FIREBASE.md         Configuração e testes do Firestore
+├── firebase.json            Regras, índices e emulador
+├── firestore.rules          Bloqueio de acesso direto de clientes
+├── firestore.indexes.json   Configuração dos índices
 ├── public/
 │   ├── css/style.css
 │   ├── js/                  Interface, conta e catálogo offline
@@ -172,16 +180,20 @@ Isso atualiza sua cópia offline e gera os ícones. Ao mudar recursos cacheados,
 
 ## Banco e modelo de dados
 
-O esquema está em `migrations/001-initial.sql`. As tabelas são criadas automaticamente no primeiro acesso ao banco. O arquivo define o esquema inicial; futuras alterações precisarão de novas migrações.
+Em produção, as coleções do Cloud Firestore são criadas na primeira escrita. O esquema `migrations/001-initial.sql` é usado somente pelo SQLite local. Não há importação automática dos dados de bancos anteriores.
 
-| Tabela | Dados principais | Finalidade |
+| Coleção | Dados principais | Finalidade |
 | --- | --- | --- |
 | `users` | ID, nome, e-mail único, hash da senha e criação | Contas de pacientes |
 | `sessions` | Hash do token, usuário e expiração | Autenticação revogável por logout |
 | `appointments` | Usuário, paciente, unidade, profissional, data e hora | Consultas da conta |
-| `request_limits` | Identificador, contador e expiração | Limites de login/cadastro e IA |
+| `requestLimits` | Identificador, contador e expiração | Limites de login/cadastro e IA |
+| `uniqueEmails` | Hash do e-mail e usuário | Unicidade de e-mails em transação |
+| `slots` | Profissional, data, horário e consulta | Reserva exclusiva do horário |
 
-Usuários possuem várias sessões e consultas. As consultas têm restrição `UNIQUE (professional_id, date, time)`, que impede duas reservas para o mesmo profissional e horário. Os dados do catálogo são estáticos nesta etapa; não existem tabelas ou painel para administrá-los.
+Criar, reagendar e cancelar utiliza transações do Firestore. Cada horário possui um identificador determinístico em `slots`, impedindo reservas concorrentes. Edições rejeitadas preservam a reserva anterior. O catálogo permanece estático nesta etapa.
+
+O navegador não acessa o Firestore diretamente. `firestore.rules` bloqueia clientes, enquanto o Admin SDK usa IAM no servidor. O login usa sessões próprias da aplicação, sem Firebase Authentication. Consulte [o guia Firebase](docs/FIREBASE.md) para regras, credenciais, limpeza TTL opcional e testes reais.
 
 ## Login e proteção dos dados
 
@@ -191,7 +203,7 @@ Usuários possuem várias sessões e consultas. As consultas têm restrição `U
 - Expiração de sete dias; logout invalida a sessão utilizada.
 - Cookie `HttpOnly`, `SameSite=Lax`, com `Secure` em produção.
 - Consultas vinculadas ao usuário autenticado; IDs de consultas de outra conta não permitem leitura ou alteração.
-- Consultas SQL parametrizadas e validação de entrada no backend.
+- Validação no backend, transações Firestore e SQL parametrizado no modo SQLite local.
 - Escritas exigem JSON e rejeitam origem cruzada conforme as verificações do servidor.
 - Login/cadastro: até 30 tentativas por IP e 10 por e-mail em janelas fixas de 15 minutos.
 - Respostas da API usam `Cache-Control: no-store` e são excluídas do cache do Service Worker.
@@ -335,26 +347,29 @@ npm run test:e2e
 | Suíte | Verificações |
 | --- | --- |
 | Regras e API | Datas, vínculos, autenticação, CRUD, conflitos, isolamento e logout |
+| Firestore (contrato simulado) | Reservas concorrentes, reagendamento, isolamento, e-mail único, sessões e limites |
 | Pré-triagem | Consentimento, alertas, entrada mínima, resposta estruturada, falhas e recusa |
 | Navegador | Cadastro/login, CRUD, persistência, edição offline, manifest, cache e layouts |
 | Instalação | Elegibilidade da PWA no Chrome fora do modo anônimo |
 
-Na última validação funcional, passaram **5 testes de regras/API/IA e 5 testes de navegador**. A suíte também fecha a página e reabre offline, verifica telas não visitadas anteriormente, leitura, estilos e navegação sem requisições à API. Os testes de persistência usam SQLite local; não representam teste de conexão com PostgreSQL remoto. As respostas da OpenAI são simuladas; não comprovam funcionamento com uma chave real ou adequação clínica.
+Na última validação funcional, passaram **10 testes de regras/API/IA/Firestore e 5 testes de navegador**. A suíte fecha a página e reabre offline, verifica todas as telas, leitura, estilos e navegação sem chamadas à API. Os testes usam SQLite e um simulador do contrato Firestore; não comprovam conexão com o Firebase real. As respostas OpenAI também são simuladas.
+
+Após configurar `.env.local` com as credenciais, execute `npm run test:firebase` para verificar conexão, concorrência, isolamento, edição e exclusão no Firestore real. O teste cria e remove consultas com identificadores exclusivos. A conexão real permanece pendente até o projeto estar configurado.
 
 O Playwright usa Chrome instalado e a porta 3000. Ele reutiliza um servidor existente; confirme que esse servidor executa a versão atual do projeto. As capturas ficam em `artifacts/`, e os relatórios temporários são ignorados pelo Git.
 
 ## Configurar a produção
 
-### Banco PostgreSQL
+### Firebase / Cloud Firestore
 
-1. Na Vercel, abra `agendae-pwa` → Storage → Create Database.
-2. Escolha Neon gratuito ou conecte um banco Supabase existente.
-3. Aceite os termos do provedor quando solicitado. Para a tentativa Neon pela CLI, a Vercel indicou [este endereço de aceite](https://vercel.com/eusettees-projects/~/integrations/accept-terms/neon?source=cli).
-4. Conecte o recurso ao projeto e ao ambiente Production.
-5. Confirme `DATABASE_URL` ou `POSTGRES_URL` em Settings → Environment Variables, usando a conexão pooled com TLS indicada pelo provedor.
-6. Faça novo deploy e teste cadastro/login. As tabelas são criadas no primeiro uso.
+1. Crie o projeto no console Firebase.
+2. Crie Firestore Database, edição Standard, banco `(default)`, em modo produção.
+3. Em Configurações do projeto → Contas de serviço, gere uma chave privada e guarde o JSON fora do repositório.
+4. Na Vercel → agendae-pwa → Settings → Environment Variables → Production, configure `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` e `FIREBASE_PRIVATE_KEY` com os campos correspondentes do JSON.
+5. Mantenha o acesso direto bloqueado conforme `firestore.rules` e faça novo deploy.
+6. Teste cadastro/login e CRUD por duas contas. `/api/status` deve indicar `database: "firestore"`; isso confirma configuração, não conectividade.
 
-A integração pode preencher outras variáveis; esta aplicação utiliza as duas opções de URL acima. Não configure caminhos SQLite na produção Vercel.
+Não envie o JSON nem a chave privada no chat. Não use prefixos públicos nas variáveis. O [guia detalhado](docs/FIREBASE.md) explica IAM, regras, teste real e emulador.
 
 ### OpenAI — ativação opcional
 
@@ -365,7 +380,7 @@ A integração pode preencher outras variáveis; esta aplicação utiliza as dua
 
 As chamadas dependem do acesso e da disponibilidade da API na conta OpenAI. Enquanto a chave não estiver configurada, a aplicação deve informar a alternativa manual.
 
-Referências: [configuração Vercel](https://vercel.com/docs/project-configuration/vercel-json) e [armazenamento pelo Marketplace](https://vercel.com/docs/marketplace-storage).
+Referências: [configuração Vercel](https://vercel.com/docs/project-configuration/vercel-json) e [Firebase Admin SDK](https://firebase.google.com/docs/admin/setup).
 
 ## Commits e deploy automático
 
@@ -411,9 +426,9 @@ Referência: [integração Git da Vercel](https://vercel.com/docs/cli/git).
 | Sintoma | Verificação/ação |
 | --- | --- |
 | `EADDRINUSE` na porta 3000 | Encerre o servidor anterior deste projeto e reinicie |
-| Login em configuração | Configure o PostgreSQL, conecte ao projeto e faça novo deploy |
+| Login em configuração | Configure as três variáveis Firebase e faça novo deploy |
 | Variáveis salvas, mas recurso ainda inativo | Confira ambiente Production e gere um deployment novo |
-| Banco indisponível | Verifique URL pooled, TLS, disponibilidade e credenciais no provedor |
+| Banco indisponível | Verifique banco (default), ID, chave privada e permissão IAM da conta de serviço |
 | IA oferece escolha manual | Confira chave, acesso ao modelo e disponibilidade; sem chave esse comportamento é esperado |
 | Muitas tentativas | Aguarde a janela de limite expirar |
 | Horário ocupado | Escolha outro ou cancele a reserva anterior; o banco verifica conflitos |
@@ -425,7 +440,7 @@ Referência: [integração Git da Vercel](https://vercel.com/docs/cli/git).
 
 ## Próximas etapas
 
-- Ativar e validar banco PostgreSQL e, quando solicitado, a chave OpenAI na produção.
+- Ativar e validar Cloud Firestore e, quando solicitado, a chave OpenAI na produção.
 - Validar a pré-triagem e o comportamento de urgência com profissionais de saúde.
 - Recuperação de senha, verificação de e-mail e gestão/exclusão de conta.
 - Perfis de administrador e profissional, com CRUD de clínicas, especialidades e disponibilidade.
