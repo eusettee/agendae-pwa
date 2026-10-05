@@ -9,6 +9,7 @@ async function check() {
   const second = { ...item, id: randomUUID() };
   try {
     const result = await Promise.allSettled([store.saveAppointment(item,userId,true),store.saveAppointment(second,userId,true)]);
+    if (!result.some(entry => entry.status === 'fulfilled')) throw result[0].reason;
     assert.equal(result.filter(r => r.status === 'fulfilled').length,1);
     assert.equal(result.find(r => r.status === 'rejected').reason.status,409);
     const saved = (await store.listAppointments(userId))[0];
@@ -20,9 +21,13 @@ async function check() {
     console.log('Firestore real: conexão, concorrência, edição, isolamento e exclusão confirmados.');
   } finally {
     for(const candidate of [item,second]) {
-      try { await store.deleteAppointment(candidate.id,userId); } catch(error) { if(error.status!==404) console.error('Não foi possível limpar um registro de teste.'); }
+      try { await store.deleteAppointment(candidate.id,userId); } catch(error) { if(error.status!==404) console.error(`Não foi possível limpar um registro de teste (código ${error.code || 'desconhecido'}, status ${error.status || 'ausente'}).`); }
     }
     await db.terminate();
   }
 }
-check().catch(error => { console.error(error.status ? error.message : 'Verificação Firebase falhou. Confira credenciais, Firestore e permissões.'); process.exitCode=1; });
+check().catch(error => {
+  console.error(error.status ? error.message : `Verificação Firebase falhou (código ${error.code || 'desconhecido'}). Confira credenciais, Firestore e permissões.`);
+  if (error.code === 'ERR_ASSERTION') console.error(JSON.stringify({ actual: error.actual, expected: error.expected }));
+  process.exitCode=1;
+});
