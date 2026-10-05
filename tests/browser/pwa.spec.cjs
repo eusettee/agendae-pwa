@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, chromium } = require('@playwright/test');
 test('agendamento persiste, bloqueia duplicidade e cancela offline após recarregar', async ({ page, context }) => {
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
@@ -47,8 +47,7 @@ test('manifest, cache, instalação oferecida e layouts desktop e celular', asyn
   const session = await page.context().newCDPSession(page);
   await session.send('Page.enable');
   const eligibility = await session.send('Page.getInstallabilityErrors');
-  expect(eligibility.installabilityErrors).toEqual([]);
-  console.log('Erros de elegibilidade de instalação:', eligibility.installabilityErrors.length);
+  expect(eligibility.installabilityErrors.filter(error => error.errorId !== 'in-incognito')).toEqual([]);
   await page.screenshot({ path: 'artifacts/desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
@@ -59,4 +58,18 @@ test('manifest, cache, instalação oferecida e layouts desktop e celular', asyn
   await page.screenshot({ path: 'artifacts/mobile-agendar.png', fullPage: true });
   offered = await page.evaluate(() => Boolean(window.installOffered));
   console.log('Instalação oferecida pelo Chrome:', offered);
+});
+test('Chrome com perfil normal reconhece a PWA como instalável', async () => {
+  const context = await chromium.launchPersistentContext('.test-browser', { channel: 'chrome', headless: true });
+  try {
+    const page = context.pages()[0];
+    await page.goto('http://localhost:3000');
+    await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+    await page.reload();
+    const session = await context.newCDPSession(page);
+    await session.send('Page.enable');
+    const result = await session.send('Page.getInstallabilityErrors');
+    expect(result.installabilityErrors).toEqual([]);
+    console.log('PWA instalável: nenhum erro de elegibilidade no Chrome.');
+  } finally { await context.close(); }
 });

@@ -52,7 +52,7 @@ npm test
 npm run test:e2e
 ```
 
-Os testes de navegador usam o Google Chrome instalado. Validam persistência, conflito, cancelamento, agendamento e recarga offline; verificam o manifest, o cache e o layout em 390 px. Capturas ficam em `artifacts/`.
+Os testes de navegador usam o Google Chrome instalado. Validam persistência, conflito, cancelamento, agendamento e recarga offline; verificam o manifest, o cache e o layout em 390 px. Um perfil normal do Chrome confirmou a elegibilidade para instalação, sem erros; a instalação efetiva na interface do sistema deve ser demonstrada manualmente quando o navegador oferecer esse recurso. Capturas ficam em `artifacts/`.
 
 ## Apresentação (3 minutos)
 

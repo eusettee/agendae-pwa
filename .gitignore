@@ -5,3 +5,5 @@ playwright-report/
 *.log
 .env*
 !.env.example
+agendae-pwa.zip
+.test-browser/

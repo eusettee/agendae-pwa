@@ -18,8 +18,9 @@ if ($LASTEXITCODE -eq 1) {
   git commit -m 'feat: PWA Agendae com agendamento e modo offline'
   Assert-Success 'Não foi possível criar o commit.'
 }
-git remote get-url origin 2>$null
-if ($LASTEXITCODE -ne 0) {
+$Remotes = @(git remote)
+Assert-Success 'Não foi possível verificar os remotos Git.'
+if ($Remotes -notcontains 'origin') {
   gh repo create agendae-pwa --private --source . --remote origin --push
   Assert-Success 'Não foi possível criar o repositório. Verifique se agendae-pwa já existe.'
 } else {
@@ -31,6 +32,8 @@ if ($LASTEXITCODE -ne 0) {
   npx.cmd --yes vercel@latest login
   Assert-Success 'Autenticação na Vercel necessária.'
 }
+npx.cmd --yes vercel@latest link --yes --project agendae-pwa
+Assert-Success 'Não foi possível vincular o projeto na Vercel.'
 npx.cmd --yes vercel@latest --prod --yes
 Assert-Success 'Não foi possível publicar na Vercel.'
 npx.cmd --yes vercel@latest git connect --yes
