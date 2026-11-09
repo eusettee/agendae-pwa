@@ -18,3 +18,4 @@ firestore-debug.log
 .vercel
 .env*
 !.env.example
+.n8n/

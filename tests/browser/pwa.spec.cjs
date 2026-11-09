@@ -48,7 +48,7 @@ test('manifest, cache, instalação oferecida e layouts desktop e celular', asyn
   expect(manifest.icons.some(icon => icon.sizes === '192x192')).toBeTruthy();
   expect(manifest.icons.some(icon => icon.sizes === '512x512')).toBeTruthy();
   expect(manifest.display).toBe('standalone');
-  const cached = await page.evaluate(async () => (await (await caches.open('agendae-shell-v5')).keys()).map(request => new URL(request.url).pathname));
+  const cached = await page.evaluate(async () => (await (await caches.open('agendae-shell-v6')).keys()).map(request => new URL(request.url).pathname));
   expect(cached).toContain('/index.html'); expect(cached).toContain('/css/style.css'); expect(cached).toContain('/js/app.js');
   const session = await page.context().newCDPSession(page);
   await session.send('Page.enable');
@@ -69,7 +69,7 @@ test('App Shell abre todas as telas offline após fechar a página, sem depender
   await page.route('**/api/**', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'API indisponível no teste' }) }));
   await page.goto('/');
   await expect(page.locator('#app-shell-status')).toHaveText('Pronto para usar offline');
-  const assets = await page.evaluate(async () => (await (await caches.open('agendae-shell-v5')).keys()).map(request => new URL(request.url).pathname));
+  const assets = await page.evaluate(async () => (await (await caches.open('agendae-shell-v6')).keys()).map(request => new URL(request.url).pathname));
   expect(assets).toContain('/js/pwa.js');
   expect(assets.some(path => path.startsWith('/api/'))).toBeFalsy();
   await page.close();
@@ -157,7 +157,9 @@ test('atualização automática recebe reservas e cancelamentos de outra conta',
     expect((await register(other.request, 'Outra Conta')).ok()).toBeTruthy();
     await page.goto('/#agendar');
     await expect(page.locator('#account-link')).toContainText('Paciente Atualização');
-    const booking = await page.evaluate(() => ({ clinicId: document.querySelector('#clinic').value, professionalId: document.querySelector('#professional').value, date: document.querySelector('#date').value, time: '09:00' }));
+    // Data distante e única evita conflito com consultas já existentes no banco local.
+    const date = await page.evaluate(() => { const d = new Date(Date.UTC(2090 + Math.floor(Math.random() * 9), Math.floor(Math.random() * 12), 1 + Math.floor(Math.random() * 27), 12)); while ([0, 6].includes(d.getUTCDay())) d.setUTCDate(d.getUTCDate() + 1); const value = d.toISOString().slice(0, 10); const input = document.querySelector('#date'); input.value = value; input.dispatchEvent(new Event('change')); return value; });
+    const booking = await page.evaluate(date => ({ clinicId: document.querySelector('#clinic').value, professionalId: document.querySelector('#professional').value, date, time: '09:00' }), date);
     const saved = await other.request.post('http://localhost:3000/api/appointments', { data: booking });
     expect(saved.ok()).toBeTruthy();
     const { appointment } = await saved.json();

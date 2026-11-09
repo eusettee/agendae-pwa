@@ -159,7 +159,7 @@ function renderAppointments() {
 
 function navigate(focus = true) {
   const requested = location.hash.slice(1) || 'inicio';
-  const page = ['inicio', 'agendar', 'consultas', 'ajuda', 'conta', 'triagem', 'unidades', 'canais'].includes(requested) ? requested : 'inicio';
+  const page = ['inicio', 'agendar', 'consultas', 'ajuda', 'conta', 'triagem', 'unidades', 'canais', 'whatsapp'].includes(requested) ? requested : 'inicio';
   document.querySelectorAll('.page').forEach(section => { section.hidden = section.id !== page; });
   document.querySelectorAll('[data-page]').forEach(link => {
     link.classList.toggle('active', link.dataset.page === page);

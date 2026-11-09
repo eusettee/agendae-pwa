@@ -1,0 +1,137 @@
+{
+  "name": "Agendaê · Atendimento WhatsApp",
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "agendae-chat", "responseMode": "responseNode", "options": {} },
+      "id": "5b7f6a52-0d3e-4d47-9a51-3c1f2a6b0001",
+      "name": "Mensagem do app (simulador)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "5b7f6a52-0d3e-4d47-9a51-3c1f2a6b0101"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normaliza a mensagem recebida do simulador do app.\nreturn $input.all().map(item => {\n  const body = item.json.body || {};\n  return { json: { channel: 'site', from: String(body.from || ''), text: String(body.text || '').slice(0, 1000) } };\n});"
+      },
+      "id": "5b7f6a52-0d3e-4d47-9a51-3c1f2a6b0002",
+      "name": "Normalizar (app)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AGENDAE_API_URL }}/api/gateway",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Authorization", "value": "=Bearer {{ $env.AGENDAE_GATEWAY_TOKEN }}" } ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ channel: $json.channel, from: $json.from, text: $json.text }) }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "5b7f6a52-0d3e-4d47-9a51-3c1f2a6b0003",
+      "name": "API Agendaê · Gateway (app)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": { "respondWith": "firstIncomingItem", "options": {} },
+      "id": "5b7f6a52-0d3e-4d47-9a51-3c1f2a6b0004",
+      "name": "Responder ao app",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 0]
+    },
+    {
+      "parameters": { "httpMethod": "GET", "path": "agendae-whatsapp", "responseMode": "responseNode", "options": {} },
+      "id": "5b7f6a52-0d3e-4d47-9a51-3c1f2a6b0005",
+      "name": "Verificação da Meta",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 260],
+      "webhookId": "5b7f6a52-0d3e-4d47-9a51-3c1f2a6b0105"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.query['hub.verify_token'] === $env.WHATSAPP_VERIFY_TOKEN ? $json.query['hub.challenge'] : 'recusado' }}",
+        "options": {}
+      },
+      "id": "5b7f6a52-0d3e-4d47-9a51-3c1f2a6b0006",
+      "name": "Responder desafio",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [240, 260]
+    },
+    {
+      "parameters": { "httpMethod": "POST", "path": "agendae-whatsapp", "options": {} },
+      "id": "5b7f6a52-0d3e-4d47-9a51-3c1f2a6b0007",
+      "name": "Mensagem do WhatsApp (Meta)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 480],
+      "webhookId": "5b7f6a52-0d3e-4d47-9a51-3c1f2a6b0107"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai as mensagens de texto/botão do payload da WhatsApp Cloud API.\nconst out = [];\nfor (const item of $input.all()) {\n  const body = item.json.body || {};\n  if (body.object !== 'whatsapp_business_account') continue;\n  for (const change of (body.entry || []).flatMap(entry => entry.changes || [])) {\n    for (const message of change.value?.messages || []) {\n      const text = message.text?.body || message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || '';\n      out.push({ json: { channel: 'whatsapp', from: message.from, text: text.slice(0, 1000) } });\n    }\n  }\n}\nreturn out;"
+      },
+      "id": "5b7f6a52-0d3e-4d47-9a51-3c1f2a6b0008",
+      "name": "Normalizar (Meta)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 480]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.AGENDAE_API_URL }}/api/gateway",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Authorization", "value": "=Bearer {{ $env.AGENDAE_GATEWAY_TOKEN }}" } ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ channel: $json.channel, from: $json.from, text: $json.text }) }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "5b7f6a52-0d3e-4d47-9a51-3c1f2a6b0009",
+      "name": "API Agendaê · Gateway (Meta)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 480]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v23.0/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Authorization", "value": "=Bearer {{ $env.WHATSAPP_TOKEN }}" } ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $json.to, type: 'text', text: { preview_url: false, body: $json.reply } }) }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "5b7f6a52-0d3e-4d47-9a51-3c1f2a6b0010",
+      "name": "Enviar resposta no WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 480]
+    }
+  ],
+  "connections": {
+    "Mensagem do app (simulador)": { "main": [ [ { "node": "Normalizar (app)", "type": "main", "index": 0 } ] ] },
+    "Normalizar (app)": { "main": [ [ { "node": "API Agendaê · Gateway (app)", "type": "main", "index": 0 } ] ] },
+    "API Agendaê · Gateway (app)": { "main": [ [ { "node": "Responder ao app", "type": "main", "index": 0 } ] ] },
+    "Verificação da Meta": { "main": [ [ { "node": "Responder desafio", "type": "main", "index": 0 } ] ] },
+    "Mensagem do WhatsApp (Meta)": { "main": [ [ { "node": "Normalizar (Meta)", "type": "main", "index": 0 } ] ] },
+    "Normalizar (Meta)": { "main": [ [ { "node": "API Agendaê · Gateway (Meta)", "type": "main", "index": 0 } ] ] },
+    "API Agendaê · Gateway (Meta)": { "main": [ [ { "node": "Enviar resposta no WhatsApp", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "active": false,
+  "id": "agendaeWhatsapp01",
+  "tags": []
+}

@@ -488,20 +488,63 @@ flowchart LR
 
 | Camada | O que foi implementado | Arquivos |
 | --- | --- | --- |
-| 01 Apresentação | Telas **Unidades** (7 hospitais estaduais do Recife, busca por nome/bairro e favoritos offline), **Canais** (contatos oficiais, simulador do WhatsApp e sequência do atendimento), CPF opcional na conta, pré-triagem compartilhada e **painel da unidade** | `public/index.html`, `public/js/units.js`, `public/painel.html`, `public/js/painel.js` |
+| 01 Apresentação | Tela **WhatsApp** (simulador em formato de celular, canal principal), **Unidades** (7 hospitais estaduais do Recife, busca por nome/bairro e favoritos offline), **Canais** (contatos oficiais, simulador do WhatsApp e sequência do atendimento), CPF opcional na conta, pré-triagem compartilhada e **painel da unidade** | `public/index.html`, `public/js/units.js`, `public/painel.html`, `public/js/painel.js` |
 | 02 Integração | Atendimento por mensagens sem estado (menu, especialidades, hospitais, horários livres, pré-triagem, canais, urgência). Canal do site (`/api/chat`), webhook da WhatsApp Cloud API com verificação e assinatura HMAC (`/api/whatsapp`) e gateway com token para n8n (`/api/gateway`) | `lib/integration/`, `api/chat.js`, `api/whatsapp.js`, `api/gateway.js` |
 | 03 Negócio | Servidor **Express** com as mesmas rotas das funções Vercel e contrato versionado `/api/v1/*`. Perfis `paciente`, `recepcao` e `profissional`; transições de situação (agendada → chegou → realizada/faltou); CPF validado e protegido; provedor de triagem isolado (OpenAI ou regras locais) | `lib/app.cjs`, `lib/rules.cjs`, `lib/triage.cjs`, `api/panel.js` |
 | 04 Dados | Migrações SQLite versionadas (`schema_migrations`), novas coleções Firestore (`triages`, `auditLog`, `uniqueCpfs`, `professionalAccounts`) com transações, auditoria sem dados sensíveis e TTL por `deleteAfter` | `migrations/002-painel.sql`, `lib/database.cjs`, `lib/stores/` |
 
-### Fluxo do MVP (paciente → recepção → médico)
+### Fluxo do MVP: tudo pelo WhatsApp
 
-1. **Paciente** cria a conta e, em **Conta**, informa o CPF (opcional, com consentimento). O banco guarda só um HMAC do CPF e a versão mascarada.
-2. Em **Triagem**, descreve os sintomas e marca *Compartilhar com a unidade*. Sem chave OpenAI, a sugestão vem de **regras locais**, identificadas como tal. Sinais de urgência levam ao 192.
-3. **Usar especialidade no agendamento** anexa a pré-triagem à consulta (válida por 30 dias).
-4. **Recepção** entra em `/painel`, ativa o acesso (código de demonstração `painel-demo`, ou `PANEL_ACCESS_CODE`), busca o paciente pelo CPF e registra a chegada no dia.
-5. **Profissional** vê a agenda do dia com a pré-triagem e marca *Atendida* ou *Faltou*. A partir daí, o paciente não pode mais editar nem cancelar essa consulta.
+O paciente faz o atendimento inteiro conversando, na tela **WhatsApp** do app (simulador com o mesmo backend) ou por um número real da Meta.
 
-O mesmo atendimento funciona pelo **simulador do WhatsApp** (tela Canais): `oi`, `1`, `2 derby`, `triagem dor no joelho há dois dias`, `horarios ana 2099-10-05`, `5`. A conexão com um número real da Meta é opcional (variáveis `WHATSAPP_*`); sem ela, o simulador usa exatamente o mesmo backend.
+```mermaid
+sequenceDiagram
+    actor P as Paciente (WhatsApp)
+    participant N as n8n
+    participant A as API Express /api/gateway
+    participant D as Firestore
+    participant R as Painel (recepção/médico)
+    P->>N: oi
+    N->>A: channel, from, text + token
+    A->>D: lê e salva o estado da conversa (30 min)
+    A-->>N: menu
+    N-->>P: 1 Agendar · 2 Minhas consultas · 3 Hospitais · 4 Canais
+    P->>N: 1, concordo (LGPD), CPF, nome
+    A->>D: localiza pelo HMAC do CPF ou cria o cadastro
+    P->>N: sintomas, duração, intensidade
+    A->>A: pré-triagem (OpenAI ou regras locais; urgência = 192)
+    A->>D: salva a pré-triagem
+    P->>N: especialidade, profissional, data, horário, confirmar
+    A->>D: reserva o horário em transação
+    N-->>P: Consulta confirmada · protocolo AGD-XXXXXX
+    R->>A: busca pelo CPF / agenda do dia
+    A-->>R: consulta + pré-triagem
+```
+
+1. **Menu** → *1 Agendar consulta* → consentimento (LGPD).
+2. **CPF**: se já existe (cadastrado pelo app ou pelo WhatsApp), o paciente é reconhecido; senão, informa o nome e o cadastro é criado.
+3. **Pré-triagem**: sintomas, há quanto tempo e intensidade. Sinais de urgência interrompem e orientam ligar 192.
+4. **Sugestão** de especialidade (IA ou regras locais, sempre identificadas) → profissional/unidade → uma das próximas 5 datas úteis → horário livre → **confirmação** com protocolo.
+5. **Minhas consultas**: lista as consultas futuras pelo CPF e permite cancelar, se a unidade ainda não registrou chegada ou atendimento.
+6. **Recepção** (`/painel`, código `painel-demo`) busca pelo CPF e registra a chegada; **profissional** vê a pré-triagem e marca *Atendida* ou *Faltou*.
+
+### n8n
+
+O fluxo [`integrations/n8n/agendae-whatsapp.json`](integrations/n8n/agendae-whatsapp.json) tem dois caminhos:
+
+| Caminho | Nós | Uso |
+| --- | --- | --- |
+| App/simulador | Webhook `POST /webhook/agendae-chat` → Normalizar → HTTP `/api/gateway` → Responder ao app | Demonstração: cada resposta aparece no chat com a etiqueta **via n8n** |
+| WhatsApp real | Webhook `GET/POST /webhook/agendae-whatsapp` → Normalizar (Meta) → HTTP `/api/gateway` → HTTP Graph API | Número da WhatsApp Cloud API, com `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_TOKEN` e `WHATSAPP_PHONE_NUMBER_ID` no ambiente do n8n |
+
+Para demonstrar localmente, em dois terminais:
+
+```powershell
+npm start
+.\iniciar-n8n.ps1
+```
+
+O primeiro sobe a API e o app em http://localhost:3000; o segundo importa, publica e inicia o n8n em http://localhost:5678 (instala o n8n na primeira vez). O `.env.local` precisa de `GATEWAY_TOKEN` (mesmo valor na API e no n8n) e `N8N_WEBHOOK_URL=http://localhost:5678/webhook/agendae-chat`. Com o n8n desligado, o app atende direto pela API e marca as respostas como **API direta**; o fluxo continua funcionando. Na Vercel, sem n8n hospedado, as respostas são **API direta**.
 
 Todo acesso ao painel (ativação, agenda, busca por CPF e mudança de situação) é registrado em auditoria com ação, autor, perfil, alvo e horário, sem nome, CPF ou relato.
 

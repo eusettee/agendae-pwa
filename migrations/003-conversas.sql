@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS conversations (key TEXT PRIMARY KEY, state TEXT NOT NULL, expires_at BIGINT NOT NULL);

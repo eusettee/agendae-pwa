@@ -65,23 +65,43 @@
     const escaped = String(text).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
     return escaped.replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>').replace(/(^|\s)_([^_\n]+)_/g, '$1<em>$2</em>').replace(/\n/g, '<br>');
   }
-  function addBubble(text, own) {
+  const SESSION_KEY = 'agendae.chat.session';
+  function chatSession(reset = false) {
+    try {
+      let id = reset ? null : sessionStorage.getItem(SESSION_KEY);
+      if (!id) { id = crypto.randomUUID(); sessionStorage.setItem(SESSION_KEY, id); }
+      return id;
+    } catch { return (window.__chatSession ||= crypto.randomUUID()); }
+  }
+  function addBubble(text, own, via) {
     const bubble = element('div', own ? 'chat-bubble own' : 'chat-bubble');
     bubble.innerHTML = formatMessage(text);
-    const time = element('small', '', new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-    bubble.append(time); byId('chat-log').append(bubble); byId('chat-log').scrollTop = byId('chat-log').scrollHeight;
+    const meta = element('small', '', new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + (own ? ' ✓✓' : ''));
+    if (via) { const tag = element('span', via === 'n8n' ? 'via-tag n8n' : 'via-tag', via === 'n8n' ? 'via n8n' : 'API direta'); meta.prepend(tag); }
+    bubble.append(meta); byId('chat-log').append(bubble); byId('chat-log').scrollTop = byId('chat-log').scrollHeight;
     return bubble;
   }
-  async function sendChat(text) {
-    text = text.trim(); if (!text) return;
-    addBubble(text, true); byId('chat-input').value = '';
-    if (!navigator.onLine) { addBubble('Sem conexão. O atendimento precisa de internet. Em emergência, ligue *192*.'); return; }
-    const typing = addBubble('_digitando…_');
+  function setButtons(buttons = []) {
+    byId('chat-quick').replaceChildren(...buttons.map(item => { const button = element('button', '', item.title); button.type = 'button'; button.addEventListener('click', () => sendChat(item.value, item.title)); return button; }));
+  }
+  let sending = false;
+  async function sendChat(text, label) {
+    text = String(text).trim(); if (!text || sending) return;
+    sending = true; setButtons(); addBubble(label || text, true); byId('chat-input').value = '';
+    if (!navigator.onLine) { addBubble('Sem conexão. O atendimento precisa de internet. Em emergência, ligue *192*.'); sending = false; return; }
+    byId('chat-presence').textContent = 'digitando…';
     try {
-      const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }), signal: AbortSignal.timeout(25000) });
+      const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, sessionId: chatSession() }), signal: AbortSignal.timeout(30000) });
       const result = await response.json();
-      typing.remove(); addBubble(response.ok ? result.reply : result.error || 'Atendimento indisponível.');
-    } catch { typing.remove(); addBubble('Atendimento indisponível no momento. Tente novamente.'); }
+      addBubble(response.ok ? result.reply : result.error || 'Atendimento indisponível.', false, response.ok ? result.via : null);
+      if (response.ok) { setButtons(result.buttons); byId('whatsapp-status').textContent = result.via === 'n8n' ? 'via n8n' : 'API direta'; }
+    } catch { addBubble('Atendimento indisponível no momento. Tente novamente.'); }
+    finally { sending = false; byId('chat-presence').textContent = 'online'; }
+  }
+  function startChat(reset = false) {
+    chatSession(reset); byId('chat-log').replaceChildren();
+    addBubble('Olá! 👋 Este é o atendimento do *Agendaê* pelo WhatsApp. Envie *oi* para começar.');
+    setButtons([{ value: 'oi', title: 'Oi' }]);
   }
 
   function initializeUnits() {
@@ -97,8 +117,8 @@
     byId('unit-favorites-only').addEventListener('change', renderUnits);
     window.addEventListener('storage', event => { if (event.key === FAVORITES_KEY) renderUnits(); });
     byId('chat-form').addEventListener('submit', event => { event.preventDefault(); sendChat(byId('chat-input').value); });
-    document.querySelectorAll('[data-chat]').forEach(button => button.addEventListener('click', () => sendChat(button.dataset.chat)));
-    addBubble('Olá! Envie *oi* para ver o menu do atendimento.');
+    byId('chat-reset').addEventListener('click', () => startChat(true));
+    startChat();
     renderUnits(); renderChannels();
   }
   initializeUnits();

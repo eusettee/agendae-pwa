@@ -147,7 +147,6 @@ async function initializeAccount() {
   if (!navigator.onLine) return;
   try {
     const status = await apiRequest('status');
-    $('#whatsapp-status').textContent = status.whatsapp ? 'Número oficial conectado' : 'Simulação do canal WhatsApp';
     if (!status.accounts) {
       $('#auth-error').textContent = 'Login em configuração. O modo demonstração está disponível.'; $('#auth-error').hidden = false;
       return;
