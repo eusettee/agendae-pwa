@@ -56,7 +56,7 @@ test('Firestore: isola leitura, edição e exclusão entre usuários', async () 
   assert.deepEqual(await store.listAppointments('user-2'), []);
   await assert.rejects(() => store.saveAppointment(appointment, 'user-2', false), error => error.status === 404);
   await assert.rejects(() => store.deleteAppointment(appointment.id, 'user-2'), error => error.status === 404);
-  assert.deepEqual(await store.listAppointments('user-1'), [appointment]);
+  assert.deepEqual(await store.listAppointments('user-1'), [{ ...appointment, status: 'agendada' }]);
 });
 test('Firestore: e-mail único, sessão expira e limite é incrementado em transação', async () => {
   const store = createFirestoreStore(fakeFirestore());
@@ -65,9 +65,24 @@ test('Firestore: e-mail único, sessão expira e limite é incrementado em trans
   await assert.rejects(() => store.createUser({ ...user, id: 'user-2' }), error => error.status === 409);
   assert.deepEqual(await store.userByEmail(user.email), user);
   await store.createSession('token-hash', user.id, 100);
-  assert.deepEqual(await store.sessionUser('token-hash', 99), { id: user.id, name: user.name, email: user.email });
+  assert.deepEqual(await store.sessionUser('token-hash', 99), { id: user.id, name: user.name, email: user.email, role: 'paciente', clinicId: null, professionalId: null, cpfMasked: null });
   assert.equal(await store.sessionUser('token-hash', 100), null);
   assert.deepEqual(await Promise.all([1,2,3].map(() => store.incrementLimit('key', 1000))), [1,2,3]);
+});
+test('Firestore: CPF e profissional únicos, situação bloqueia edição do paciente', async () => {
+  const store = createFirestoreStore(fakeFirestore());
+  for (const id of ['user-1', 'user-2']) await store.createUser({ id, name: id, email: id + '@example.test', passwordHash: 'h', createdAt: 1 });
+  await store.setCpf('user-1', 'cpf-hash', '***.456.***-09');
+  await assert.rejects(() => store.setCpf('user-2', 'cpf-hash', 'x'), error => error.status === 409);
+  assert.equal((await store.userByCpf('cpf-hash')).id, 'user-1');
+  await store.setStaffRole('user-2', { role: 'profissional', clinicId: 'boa-vista', professionalId: 'ana' });
+  await assert.rejects(() => store.setStaffRole('user-1', { role: 'profissional', clinicId: 'boa-vista', professionalId: 'ana' }), error => error.status === 409);
+  await store.saveAppointment(appointment, 'user-1', true);
+  assert.equal((await store.listAgenda({ professionalId: 'ana' }, appointment.date))[0].userId, 'user-1');
+  await store.updateStatus(appointment.id, 'agendada', 'realizada');
+  await assert.rejects(() => store.updateStatus(appointment.id, 'agendada', 'faltou'), error => error.status === 409);
+  await assert.rejects(() => store.saveAppointment({ ...appointment, time: '10:00' }, 'user-1', false), error => error.status === 409);
+  await assert.rejects(() => store.deleteAppointment(appointment.id, 'user-1'), error => error.status === 409);
 });
 test('Firebase não considera só o ID do projeto como credencial de produção', () => {
   const keys = ['VERCEL','FIREBASE_PROJECT_ID','FIREBASE_CLIENT_EMAIL','FIREBASE_PRIVATE_KEY','GOOGLE_APPLICATION_CREDENTIALS','FIRESTORE_EMULATOR_HOST'];

@@ -1,0 +1,13 @@
+ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'paciente';
+ALTER TABLE users ADD COLUMN clinic_id TEXT;
+ALTER TABLE users ADD COLUMN professional_id TEXT;
+ALTER TABLE users ADD COLUMN cpf_hash TEXT;
+ALTER TABLE users ADD COLUMN cpf_masked TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS users_professional ON users(professional_id) WHERE professional_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS users_cpf ON users(cpf_hash) WHERE cpf_hash IS NOT NULL;
+ALTER TABLE appointments ADD COLUMN status TEXT NOT NULL DEFAULT 'agendada';
+ALTER TABLE appointments ADD COLUMN triage_id TEXT;
+CREATE INDEX IF NOT EXISTS appointments_clinic_date ON appointments(clinic_id, date);
+CREATE INDEX IF NOT EXISTS appointments_professional_date ON appointments(professional_id, date);
+CREATE TABLE IF NOT EXISTS triages (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, data TEXT NOT NULL, created_at BIGINT NOT NULL, expires_at BIGINT NOT NULL);
+CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, action TEXT NOT NULL, actor_id TEXT, role TEXT, target_id TEXT, at BIGINT NOT NULL);

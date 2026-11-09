@@ -22,6 +22,7 @@ PWA acadêmica do Projeto Integrador do SENAC para simplificar o agendamento de 
 - [Commits e deploy automático](#commits-e-deploy-automático)
 - [Roteiro de apresentação](#roteiro-de-apresentação)
 - [Solução de problemas](#solução-de-problemas)
+- [Arquitetura em camadas (segunda etapa)](#arquitetura-em-camadas-segunda-etapa)
 - [Próximas etapas](#próximas-etapas)
 
 ## Estado da entrega
@@ -449,13 +450,71 @@ Referência: [integração Git da Vercel](https://vercel.com/docs/cli/git).
 | Dados ausentes em outro dispositivo | A demonstração é local; para compartilhar consultas use uma conta |
 | Teste e2e falha por servidor antigo | Reinicie o servidor local antes da suíte |
 
+## Arquitetura em camadas (segunda etapa)
+
+A implementação segue as quatro camadas apresentadas na avaliação da arquitetura, na ordem **Apresentação → Integração → Negócio → Dados**.
+
+```mermaid
+flowchart LR
+    subgraph C[01 Apresentação]
+      P[PWA: agenda, triagem, unidades, canais]
+      S[Simulador do WhatsApp]
+      W[Painel web da unidade]
+    end
+    subgraph I[02 Integração]
+      CH[/api/chat/]
+      WA[/api/whatsapp · Meta/]
+      GW[/api/gateway · n8n/]
+      BOT[Atendimento por mensagens]
+    end
+    subgraph N[03 Negócio · Node.js/Express]
+      R[Regras: perfis, CPF, situação, permissões]
+      T[Pré-triagem: OpenAI ou regras locais]
+    end
+    subgraph D[04 Dados]
+      F[(Cloud Firestore / SQLite local)]
+      O[Fontes oficiais: SES-PE, SAMU, Disque Saúde]
+    end
+    P --> R
+    W --> R
+    S --> CH --> BOT
+    WA --> BOT
+    GW --> BOT
+    BOT --> T
+    R --> T
+    R --> F
+    BOT --> O
+```
+
+| Camada | O que foi implementado | Arquivos |
+| --- | --- | --- |
+| 01 Apresentação | Telas **Unidades** (7 hospitais estaduais do Recife, busca por nome/bairro e favoritos offline), **Canais** (contatos oficiais, simulador do WhatsApp e sequência do atendimento), CPF opcional na conta, pré-triagem compartilhada e **painel da unidade** | `public/index.html`, `public/js/units.js`, `public/painel.html`, `public/js/painel.js` |
+| 02 Integração | Atendimento por mensagens sem estado (menu, especialidades, hospitais, horários livres, pré-triagem, canais, urgência). Canal do site (`/api/chat`), webhook da WhatsApp Cloud API com verificação e assinatura HMAC (`/api/whatsapp`) e gateway com token para n8n (`/api/gateway`) | `lib/integration/`, `api/chat.js`, `api/whatsapp.js`, `api/gateway.js` |
+| 03 Negócio | Servidor **Express** com as mesmas rotas das funções Vercel e contrato versionado `/api/v1/*`. Perfis `paciente`, `recepcao` e `profissional`; transições de situação (agendada → chegou → realizada/faltou); CPF validado e protegido; provedor de triagem isolado (OpenAI ou regras locais) | `lib/app.cjs`, `lib/rules.cjs`, `lib/triage.cjs`, `api/panel.js` |
+| 04 Dados | Migrações SQLite versionadas (`schema_migrations`), novas coleções Firestore (`triages`, `auditLog`, `uniqueCpfs`, `professionalAccounts`) com transações, auditoria sem dados sensíveis e TTL por `deleteAfter` | `migrations/002-painel.sql`, `lib/database.cjs`, `lib/stores/` |
+
+### Fluxo do MVP (paciente → recepção → médico)
+
+1. **Paciente** cria a conta e, em **Conta**, informa o CPF (opcional, com consentimento). O banco guarda só um HMAC do CPF e a versão mascarada.
+2. Em **Triagem**, descreve os sintomas e marca *Compartilhar com a unidade*. Sem chave OpenAI, a sugestão vem de **regras locais**, identificadas como tal. Sinais de urgência levam ao 192.
+3. **Usar especialidade no agendamento** anexa a pré-triagem à consulta (válida por 30 dias).
+4. **Recepção** entra em `/painel`, ativa o acesso (código de demonstração `painel-demo`, ou `PANEL_ACCESS_CODE`), busca o paciente pelo CPF e registra a chegada no dia.
+5. **Profissional** vê a agenda do dia com a pré-triagem e marca *Atendida* ou *Faltou*. A partir daí, o paciente não pode mais editar nem cancelar essa consulta.
+
+O mesmo atendimento funciona pelo **simulador do WhatsApp** (tela Canais): `oi`, `1`, `2 derby`, `triagem dor no joelho há dois dias`, `horarios ana 2099-10-05`, `5`. A conexão com um número real da Meta é opcional (variáveis `WHATSAPP_*`); sem ela, o simulador usa exatamente o mesmo backend.
+
+Todo acesso ao painel (ativação, agenda, busca por CPF e mudança de situação) é registrado em auditoria com ação, autor, perfil, alvo e horário, sem nome, CPF ou relato.
+
+> CPF de teste válido (fictício): `529.982.247-25`. Use apenas dados fictícios na apresentação.
+
 ## Próximas etapas
 
 - Ativar e validar a chave OpenAI na produção quando ela estiver configurada.
 - Validar a pré-triagem e o comportamento de urgência com profissionais de saúde.
 - Recuperação de senha, verificação de e-mail e gestão/exclusão de conta.
-- Perfis de administrador e profissional, com CRUD de clínicas, especialidades e disponibilidade.
-- Integração com clínicas reais, auditoria, consentimentos e política de retenção.
+- Perfil de administrador, com CRUD de clínicas, especialidades e disponibilidade.
+- Conectar um número real da WhatsApp Cloud API e o fluxo n8n.
+- Integração com clínicas reais e política formal de retenção.
 - Testes de usabilidade, acessibilidade e uso por pessoas idosas.
 - Validar o app Expo em celulares físicos, gerar builds e implementar lembretes.
 
