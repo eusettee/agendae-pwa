@@ -61,6 +61,29 @@
     }
   }
 
+  function formatMessage(text) {
+    const escaped = String(text).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    return escaped.replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>').replace(/(^|\s)_([^_\n]+)_/g, '$1<em>$2</em>').replace(/\n/g, '<br>');
+  }
+  function addBubble(text, own) {
+    const bubble = element('div', own ? 'chat-bubble own' : 'chat-bubble');
+    bubble.innerHTML = formatMessage(text);
+    const time = element('small', '', new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+    bubble.append(time); byId('chat-log').append(bubble); byId('chat-log').scrollTop = byId('chat-log').scrollHeight;
+    return bubble;
+  }
+  async function sendChat(text) {
+    text = text.trim(); if (!text) return;
+    addBubble(text, true); byId('chat-input').value = '';
+    if (!navigator.onLine) { addBubble('Sem conexão. O atendimento precisa de internet. Em emergência, ligue *192*.'); return; }
+    const typing = addBubble('_digitando…_');
+    try {
+      const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }), signal: AbortSignal.timeout(25000) });
+      const result = await response.json();
+      typing.remove(); addBubble(response.ok ? result.reply : result.error || 'Atendimento indisponível.');
+    } catch { typing.remove(); addBubble('Atendimento indisponível no momento. Tente novamente.'); }
+  }
+
   function initializeUnits() {
     if (!byId('unit-list')) return;
     const source = data.hospitalSource;
@@ -73,6 +96,9 @@
     byId('unit-search').addEventListener('input', renderUnits);
     byId('unit-favorites-only').addEventListener('change', renderUnits);
     window.addEventListener('storage', event => { if (event.key === FAVORITES_KEY) renderUnits(); });
+    byId('chat-form').addEventListener('submit', event => { event.preventDefault(); sendChat(byId('chat-input').value); });
+    document.querySelectorAll('[data-chat]').forEach(button => button.addEventListener('click', () => sendChat(button.dataset.chat)));
+    addBubble('Olá! Envie *oi* para ver o menu do atendimento.');
     renderUnits(); renderChannels();
   }
   initializeUnits();
