@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#125c4c">
+  <meta name="robots" content="noindex">
+  <meta name="description" content="Painel restrito da unidade: agenda do dia, chegada por CPF e pré-triagem.">
+  <link rel="icon" type="image/png" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/css/style.css?v=5">
+  <title>Agendaê · Painel da unidade</title>
+  <script defer src="/js/catalog.js?v=5"></script>
+  <script defer src="/js/painel.js?v=5"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Pular para o conteúdo</a>
+  <aside class="sidebar">
+    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">+</span>agendaê<span class="brand-dot">.</span></a>
+    <p class="brand-caption">Painel da unidade</p>
+    <div class="sidebar-note"><span class="small-label">ACESSO RESTRITO</span><p>Recepção e profissionais<br>da unidade.</p><small>Dados fictícios de demonstração</small><a class="panel-link" href="/">← Voltar ao app</a></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><span id="panel-user">Painel da unidade</span><div class="topbar-actions"><button id="panel-logout" class="button small secondary" hidden>Sair</button><span id="connection" class="connection" role="status">Online</span></div></header>
+    <main id="main" tabindex="-1">
+      <section id="panel-login" class="page" hidden>
+        <p class="eyebrow">PAINEL RESTRITO</p><h1>Entrar no painel</h1><p class="muted intro">Use a conta da equipe. Pacientes acessam pelo <a href="/">aplicativo</a>.</p>
+        <form id="login-form" class="card booking-form auth-form"><label for="login-email">E-mail</label><input id="login-email" type="email" autocomplete="username" required maxlength="254"><label for="login-password">Senha</label><input id="login-password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required><p id="login-error" class="error" role="alert" hidden></p><button class="button">Entrar</button><p class="field-hint">Ainda sem conta? Crie uma no <a href="/#conta">aplicativo</a> e volte para ativar o acesso.</p></form>
+      </section>
+      <section id="panel-activate" class="page" hidden>
+        <p class="eyebrow">PRIMEIRO ACESSO</p><h1>Ativar acesso da equipe</h1><p class="muted intro">Informe sua função e o código de acesso fornecido pela coordenação da unidade.</p>
+        <form id="activate-form" class="card booking-form auth-form"><label for="activate-role">Função</label><select id="activate-role"><option value="recepcao">Recepção</option><option value="profissional">Profissional de saúde</option></select>
+          <div id="activate-clinic-field"><label for="activate-clinic">Unidade</label><select id="activate-clinic"></select></div>
+          <div id="activate-professional-field" hidden><label for="activate-professional">Profissional</label><select id="activate-professional"></select></div>
+          <label for="activate-code">Código de acesso</label><input id="activate-code" type="password" autocomplete="off" required maxlength="128"><p id="activate-error" class="error" role="alert" hidden></p><button class="button">Ativar acesso</button></form>
+      </section>
+      <section id="panel-main" class="page" hidden>
+        <div class="section-heading"><div><p class="eyebrow" id="panel-scope">AGENDA DA UNIDADE</p><h1>Agenda do dia</h1></div><div><label for="panel-date">Data</label><input id="panel-date" type="date"></div></div>
+        <form id="lookup-form" class="card booking-form" hidden><h2>Localizar paciente pelo CPF</h2><label for="lookup-cpf">CPF do paciente</label><input id="lookup-cpf" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00" required><p id="lookup-error" class="error" role="alert" hidden></p><button class="button">Buscar</button></form>
+        <div id="lookup-result" aria-live="polite"></div>
+        <p id="panel-summary" class="muted" role="status"></p>
+        <div id="panel-list"></div>
+        <p class="demo-note">Acesso registrado em auditoria. A pré-triagem é uma orientação inicial gerada com consentimento do paciente; não é diagnóstico.</p>
+      </section>
+    </main>
+    <footer>Agendaê · Painel da unidade <span>Uso restrito à equipe.</span></footer>
+  </div>
+  <div id="toast" role="status" class="toast" hidden></div>
+</body>
+</html>

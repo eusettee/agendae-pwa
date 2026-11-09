@@ -1,6 +1,6 @@
 // Carrega o App Shell sem depender do login, do banco ou da IA.
-const APP_SHELL_CACHE = 'agendae-shell-v4';
-const APP_SHELL_FILES = ['/index.html', '/css/style.css', '/js/app.js', '/js/account.js', '/js/catalog.js', '/js/pwa.js', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable-512.png'];
+const APP_SHELL_CACHE = 'agendae-shell-v5';
+const APP_SHELL_FILES = ['/index.html', '/css/style.css', '/js/app.js', '/js/account.js', '/js/catalog.js', '/js/pwa.js', '/js/units.js', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable-512.png'];
 
 function setOfflineStatus(ready, message) {
   document.querySelector('#offline-ready').textContent = message;

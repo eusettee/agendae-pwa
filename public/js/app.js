@@ -6,6 +6,8 @@ let installPrompt;
 let pendingAction;
 let toastTimer;
 let editingAppointmentId = null;
+let pendingTriageId = null;
+const STATUS_LABELS = { agendada: 'Agendada', chegou: 'Chegada registrada pela recepção', realizada: 'Atendimento realizado', faltou: 'Ausência registrada' };
 const $ = selector => document.querySelector(selector);
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Recife' });
 
@@ -85,7 +87,7 @@ function renderSlots(fetchAvailability = true) {
 }
 
 function resetBooking() {
-  editingAppointmentId = null; $('#booking-form').reset(); $('#date').value = nextWeekday();
+  editingAppointmentId = null; pendingTriageId = null; $('#booking-triage').hidden = true; $('#booking-form').reset(); $('#date').value = nextWeekday();
   $('#cancel-edit').hidden = true; $('#form-error').hidden = true; updateAccountUI(); populateClinics();
 }
 
@@ -125,6 +127,9 @@ function renderAppointments() {
     const tag = document.createElement('span'); tag.className = 'appointment-date'; tag.textContent = `${info.date} · ${item.time}`;
     const heading = document.createElement('h2'); heading.textContent = info.professional.specialty;
     content.append(tag, heading, paragraph(`${info.professional.name} · ${info.clinic.name}`, 'muted'), paragraph(`Para ${item.patient}`, 'muted'), paragraph(currentAccount ? 'Demonstração · salvo na sua conta' : 'Demonstração · salvo neste dispositivo', 'local-label'));
+    const status = item.status || 'agendada';
+    if (status !== 'agendada') content.append(paragraph(STATUS_LABELS[status] || status, 'status-label'));
+    if (item.triageId) content.append(paragraph('Pré-triagem compartilhada com a unidade', 'muted'));
     const button = document.createElement('button'); button.type = 'button'; button.className = 'button secondary'; button.textContent = 'Cancelar';
     button.setAttribute('aria-label', `Cancelar consulta de ${item.patient} em ${info.date} às ${item.time}`);
     button.addEventListener('click', () => askConfirmation('Cancelar consulta?', currentAccount ? 'A consulta será removida da sua conta.' : 'A consulta será removida deste dispositivo.', async () => {
@@ -138,6 +143,7 @@ function renderAppointments() {
     const actions = document.createElement('div'); actions.className = 'appointment-actions';
     const edit = document.createElement('button'); edit.className = 'button secondary'; edit.textContent = 'Editar'; edit.setAttribute('aria-label', `Editar consulta de ${item.patient}`);
     edit.addEventListener('click', () => editAppointment(item)); actions.append(edit, button);
+    if (status !== 'agendada') { edit.disabled = true; button.disabled = true; edit.title = button.title = 'Consulta já registrada pela unidade.'; }
     article.append(content, actions); list.append(article);
   }
   const next = sorted.find(item => Date.parse(`${item.date}T${item.time}:00-03:00`) > Date.now());
@@ -153,7 +159,7 @@ function renderAppointments() {
 
 function navigate(focus = true) {
   const requested = location.hash.slice(1) || 'inicio';
-  const page = ['inicio', 'agendar', 'consultas', 'ajuda', 'conta', 'triagem'].includes(requested) ? requested : 'inicio';
+  const page = ['inicio', 'agendar', 'consultas', 'ajuda', 'conta', 'triagem', 'unidades', 'canais'].includes(requested) ? requested : 'inicio';
   document.querySelectorAll('.page').forEach(section => { section.hidden = section.id !== page; });
   document.querySelectorAll('[data-page]').forEach(link => {
     link.classList.toggle('active', link.dataset.page === page);
@@ -189,7 +195,7 @@ async function submitBooking(event) {
     if (!time || isSlotUnavailable(input.date, time, input.professionalId)) throw new Error('Escolha um horário disponível de segunda a sexta.');
     button.disabled = true;
     if (currentAccount) {
-      await apiRequest('appointments', editingAppointmentId ? 'PUT' : 'POST', { ...input, id: editingAppointmentId });
+      await apiRequest('appointments', editingAppointmentId ? 'PUT' : 'POST', { ...input, id: editingAppointmentId, ...(!editingAppointmentId && pendingTriageId ? { triageId: pendingTriageId } : {}) });
       await loadAccountAppointments();
     } else {
       appointments = readAppointments();

@@ -30,7 +30,10 @@ async function apiRequest(path, method = 'GET', body) {
 
 function updateAccountUI() {
   $('#account-link').textContent = currentAccount ? `Olá, ${currentAccount.name}` : 'Entrar / criar conta';
-  $('#account-link').href = currentAccount ? '#consultas' : '#conta';
+  $('#account-link').href = '#conta';
+  $('#auth-form').hidden = Boolean(currentAccount); $('#profile-form').hidden = !currentAccount;
+  $('#auth-title').textContent = currentAccount ? 'Minha conta' : registerMode ? 'Criar conta' : 'Entrar';
+  const cpf = currentAccount?.cpfMasked; $('#profile-cpf-current').hidden = !cpf; $('#profile-cpf-current').textContent = cpf ? `CPF cadastrado: ${cpf}` : ''; $('#profile-remove').hidden = !cpf;
   $('#logout').hidden = !currentAccount;
   $('#patient').readOnly = Boolean(currentAccount);
   if (currentAccount) $('#patient').value = currentAccount.name;
@@ -87,8 +90,9 @@ async function submitTriage(event) {
   if (!currentAccount) { showToast('Entre na sua conta para consultar a IA.'); location.hash = 'conta'; return; }
   $('#triage-submit').disabled = true; $('#triage-submit').textContent = 'Consultando…';
   try {
-    const result = await apiRequest('triage', 'POST', { symptoms: $('#symptoms').value, duration: $('#duration').value, intensity: $('#intensity').value, consent: $('#triage-consent').checked });
-    $('#symptoms').value = ''; $('#duration').value = ''; $('#triage-consent').checked = false;
+    const result = await apiRequest('triage', 'POST', { symptoms: $('#symptoms').value, duration: $('#duration').value, intensity: $('#intensity').value, consent: $('#triage-consent').checked, share: $('#triage-share').checked });
+    $('#symptoms').value = ''; $('#duration').value = ''; $('#triage-consent').checked = false; $('#triage-share').checked = false;
+    const attach = () => { if (result.triageId) { pendingTriageId = result.triageId; $('#booking-triage').hidden = false; } };
     const box = $('#triage-result'); box.replaceChildren(); box.hidden = false;
     const heading = document.createElement('h2');
     if (result.urgent) {
@@ -99,14 +103,25 @@ async function submitTriage(event) {
       heading.textContent = `Sugestão inicial: ${result.specialty}`;
       box.append(heading, paragraph(result.confidence === 'baixa' ? 'As informações são insuficientes para uma indicação específica. Você pode escolher Clínica Geral ou buscar orientação profissional.' : 'Sugestão gerada por IA, sujeita a erro. A decisão clínica cabe a um profissional de saúde.'));
       const choose = document.createElement('button'); choose.className = 'button'; choose.textContent = 'Usar especialidade no agendamento';
-      choose.addEventListener('click', () => { resetBooking(); $('#specialty').value = result.specialty; populateClinics(); location.hash = 'agendar'; }); box.append(choose);
+      choose.addEventListener('click', () => { resetBooking(); attach(); $('#specialty').value = result.specialty; populateClinics(); location.hash = 'agendar'; }); box.append(choose);
     } else {
       heading.textContent = 'Escolha manual disponível'; box.append(heading, paragraph(result.message));
-      const link = document.createElement('a'); link.href = '#agendar'; link.className = 'button'; link.textContent = 'Escolher especialidade'; box.append(link);
+      const link = document.createElement('a'); link.href = '#agendar'; link.className = 'button'; link.textContent = 'Escolher especialidade'; link.addEventListener('click', () => { resetBooking(); attach(); }); box.append(link);
     }
+    if (result.triageId) box.append(paragraph('Pré-triagem salva para compartilhar com a unidade ao agendar.', 'local-label'));
     box.append(paragraph(result.notice, 'muted'));
   } catch (error) { $('#triage-error').textContent = error.message; $('#triage-error').hidden = false; }
   finally { $('#triage-submit').disabled = false; $('#triage-submit').textContent = 'Consultar IA'; }
+}
+
+async function saveProfile(cpf) {
+  $('#profile-error').hidden = true;
+  try {
+    if (cpf !== null && !$('#profile-consent').checked) throw new Error('Autorize o uso do CPF para identificação na recepção.');
+    const result = await apiRequest('auth', 'POST', { action: 'profile', cpf, consent: cpf !== null });
+    currentAccount = result.user; $('#profile-form').reset(); updateAccountUI();
+    showToast(cpf === null ? 'CPF removido da sua conta.' : 'CPF salvo. A recepção poderá localizar sua consulta.');
+  } catch (error) { $('#profile-error').textContent = error.message; $('#profile-error').hidden = false; }
 }
 
 async function initializeAccount() {
@@ -118,6 +133,8 @@ async function initializeAccount() {
   $('#auth-toggle').addEventListener('click', toggleAuth);
   $('#auth-form').addEventListener('submit', submitAuth);
   $('#triage-form').addEventListener('submit', submitTriage);
+  $('#profile-form').addEventListener('submit', event => { event.preventDefault(); saveProfile($('#profile-cpf').value); });
+  $('#profile-remove').addEventListener('click', () => saveProfile(null));
   $('#logout').addEventListener('click', async () => {
     try {
       await apiRequest('auth', 'POST', { action: 'logout' });
@@ -129,6 +146,7 @@ async function initializeAccount() {
   if (!navigator.onLine) return;
   try {
     const status = await apiRequest('status');
+    $('#whatsapp-status').textContent = status.whatsapp ? 'WhatsApp do projeto: ativo' : 'WhatsApp do projeto: em configuração';
     if (!status.accounts) {
       $('#auth-error').textContent = 'Login em configuração. O modo demonstração está disponível.'; $('#auth-error').hidden = false;
       return;
