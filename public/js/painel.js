@@ -25,7 +25,7 @@ async function api(path, method = 'GET', body) {
 function triageBlock(triage) {
   const box = element('details', 'unit-details');
   box.append(element('summary', '', triage.urgent ? 'Pré-triagem · sinal de urgência' : `Pré-triagem · ${triage.specialty || 'escolha manual'}`));
-  box.append(element('p', '', `Relato: ${triage.symptoms}`), element('p', 'muted', `Duração: ${triage.duration} · Intensidade: ${triage.intensity} · Confiança: ${triage.confidence} · Origem: ${triage.source === 'ai' ? 'IA' : triage.source === 'safety' ? 'regra de segurança' : 'manual'}`));
+  box.append(element('p', '', `Relato: ${triage.symptoms}`), element('p', 'muted', `Duração: ${triage.duration} · Intensidade: ${triage.intensity} · Confiança: ${triage.confidence} · Origem: ${triage.source === 'ai' ? 'IA' : triage.source === 'safety' ? 'regra de segurança' : triage.source === 'regras' ? 'regras locais' : 'manual'}`));
   return box;
 }
 
@@ -36,7 +36,7 @@ function appointmentCard(item, showDate = false) {
   content.append(element('span', 'appointment-date', `${showDate ? item.date.split('-').reverse().join('/') + ' · ' : ''}${item.time} · ${STATUS[item.status] || item.status}`), element('h2', '', item.patient), element('p', 'muted', `${info?.specialty || ''} · ${info?.name || item.professionalId} · ${info?.clinic.name || item.clinicId}`));
   content.append(item.triage ? triageBlock(item.triage) : element('p', 'muted', 'Sem pré-triagem compartilhada.'));
   const actions = element('div', 'appointment-actions');
-  for (const [status, label] of ACTIONS[staff.role]?.[item.status] || []) {
+  for (const [status, label] of (ACTIONS[staff.role]?.[item.status] || []).filter(([next]) => next !== 'chegou' || item.date === today())) {
     const button = element('button', status === 'faltou' || status === 'agendada' ? 'button secondary' : 'button', label);
     button.type = 'button'; button.setAttribute('aria-label', `${label}: ${item.patient} às ${item.time}`);
     button.addEventListener('click', async () => {

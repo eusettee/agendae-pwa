@@ -9,7 +9,10 @@ test('pré-triagem exige consentimento e alerta urgência sem chamar IA', async 
 });
 test('sem chave não apresenta regras como IA', async () => {
   delete process.env.OPENAI_API_KEY;
-  assert.equal((await triage(input)).source, 'manual');
+  const result = await triage(input);
+  assert.equal(result.source, 'regras'); assert.notEqual(result.source, 'ai');
+  assert.equal(result.specialty, 'Ortopedia');
+  assert.equal((await triage({ ...input, symptoms: 'cansaço e mal-estar geral' })).specialty, 'Clínica Geral');
 });
 test('IA recebe dados mínimos, valida saída e tem alternativa em falhas', async () => {
   process.env.OPENAI_API_KEY = 'test-only';

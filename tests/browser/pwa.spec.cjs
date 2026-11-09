@@ -129,7 +129,8 @@ test('cadastro, login, CRUD da conta e pré-triagem com alternativa sem chave', 
   await page.getByLabel('Há quanto tempo?').fill('Dois dias');
   await page.getByLabel('Autorizo o envio').check();
   await page.getByRole('button', { name: 'Consultar IA', exact: true }).click();
-  await expect(page.locator('#triage-result')).toContainText('Escolha manual disponível');
+  await expect(page.locator('#triage-result')).toContainText('Sugestão inicial: Ortopedia');
+  await expect(page.locator('#triage-result')).toContainText('regras locais');
   await page.getByLabel('O que você está sentindo?').fill('Estou sentindo dor no peito e falta de ar');
   await page.getByLabel('Há quanto tempo?').fill('Uma hora');
   await page.getByLabel('Autorizo o envio').check();

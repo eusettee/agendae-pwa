@@ -99,9 +99,10 @@ async function submitTriage(event) {
       heading.textContent = 'Procure atendimento de urgência';
       box.append(heading, paragraph('Seu relato pode exigir avaliação imediata. Em emergência, ligue 192. A ferramenta não faz diagnóstico.'));
       const call = document.createElement('a'); call.href = 'tel:192'; call.className = 'button'; call.textContent = 'Ligar 192'; box.append(call);
-    } else if (result.source === 'ai') {
+    } else if (result.source === 'ai' || result.source === 'regras') {
       heading.textContent = `Sugestão inicial: ${result.specialty}`;
-      box.append(heading, paragraph(result.confidence === 'baixa' ? 'As informações são insuficientes para uma indicação específica. Você pode escolher Clínica Geral ou buscar orientação profissional.' : 'Sugestão gerada por IA, sujeita a erro. A decisão clínica cabe a um profissional de saúde.'));
+      const origin = result.source === 'ai' ? 'Sugestão gerada por IA' : 'Sugestão por regras locais (IA não configurada)';
+      box.append(heading, paragraph(result.confidence === 'baixa' ? `${origin}. As informações são insuficientes para uma indicação específica. Você pode escolher Clínica Geral ou buscar orientação profissional.` : `${origin}, sujeita a erro. A decisão clínica cabe a um profissional de saúde.`));
       const choose = document.createElement('button'); choose.className = 'button'; choose.textContent = 'Usar especialidade no agendamento';
       choose.addEventListener('click', () => { resetBooking(); attach(); $('#specialty').value = result.specialty; populateClinics(); location.hash = 'agendar'; }); box.append(choose);
     } else {
@@ -146,7 +147,7 @@ async function initializeAccount() {
   if (!navigator.onLine) return;
   try {
     const status = await apiRequest('status');
-    $('#whatsapp-status').textContent = status.whatsapp ? 'WhatsApp do projeto: ativo' : 'WhatsApp do projeto: em configuração';
+    $('#whatsapp-status').textContent = status.whatsapp ? 'Número oficial conectado' : 'Simulação do canal WhatsApp';
     if (!status.accounts) {
       $('#auth-error').textContent = 'Login em configuração. O modo demonstração está disponível.'; $('#auth-error').hidden = false;
       return;
