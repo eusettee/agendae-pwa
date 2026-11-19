@@ -33,6 +33,10 @@
   ],
   "rewrites": [
     {
+      "source": "/zap",
+      "destination": "/zap.html"
+    },
+    {
       "source": "/painel",
       "destination": "/painel.html"
     },

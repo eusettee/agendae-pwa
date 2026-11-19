@@ -22,7 +22,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
   // O painel da unidade é restrito e sempre usa a rede.
-  if (url.pathname.startsWith('/painel')) return;
+  if (url.pathname.startsWith('/painel') || url.pathname.startsWith('/zap')) return;
   if (event.request.mode === 'navigate') {
     // Cache First: uma conexão lenta não bloqueia a abertura da interface.
     event.respondWith(fromAppShell(APP_SHELL_DOCUMENT, APP_SHELL_DOCUMENT));
