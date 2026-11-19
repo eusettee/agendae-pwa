@@ -21,7 +21,7 @@ module.exports = endpoint(async (req, res) => {
   if (typeof text !== 'string' || !text.trim() || text.length > 1000) fail(422, 'Escreva uma mensagem de até 1000 caracteres.');
   if (typeof sessionId !== 'string' || !/^[0-9a-f-]{36}$/.test(sessionId)) fail(422, 'Sessão do simulador inválida. Recarregue a página.');
   const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'local').split(',')[0];
-  await rateLimit(`chat-ip:${createHash('sha256').update(ip).digest('hex')}`, 120, 600000);
+  await rateLimit(`chat-ip:${createHash('sha256').update(ip).digest('hex')}`, 3000, 600000);
   // O "telefone" do simulador é um identificador aleatório da aba, nunca dados pessoais.
   const from = 'site-' + createHash('sha256').update(sessionId).digest('hex').slice(0, 24);
   const forwarded = await viaN8n({ channel: 'site', from, text });
