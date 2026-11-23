@@ -1,7 +1,22 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { SessionProvider } from '../state/session';
+import { FavoritesProvider } from '../hooks/useFavorites';
+import { TriagesProvider } from '../hooks/useTriages';
+import { colors } from '../theme';
 
-export default function Layout() {
-  return <SessionProvider><StatusBar style="dark" /><Stack screenOptions={{ headerStyle: { backgroundColor: '#f4f8f7' }, headerTintColor: '#163f36' }}><Stack.Screen name="index" options={{ title: 'Agendaê' }} /><Stack.Screen name="agendar" options={{ title: 'Agendar consulta' }} /><Stack.Screen name="triagem" options={{ title: 'Orientação inicial' }} /></Stack></SessionProvider>;
+// Recurso STACK NAVIGATOR: as abas ficam na base da pilha e a tela de
+// detalhes da unidade é empilhada por cima (com botão de voltar).
+export default function RootLayout() {
+  return (
+    <TriagesProvider>
+    <FavoritesProvider>
+      <StatusBar style="light" />
+      <Stack screenOptions={{ headerStyle: { backgroundColor: colors.primary }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '700' } }}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="unidade/[id]" options={{ title: 'Detalhes da unidade' }} />
+        <Stack.Screen name="ficha/[id]" options={{ title: 'Ficha da pré-triagem' }} />
+      </Stack>
+    </FavoritesProvider>
+    </TriagesProvider>
+  );
 }

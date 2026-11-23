@@ -1,65 +1,126 @@
-# Agendaê no celular — Expo
+# Agendaê — Saúde na Palma da Mão (React Native)
 
-App Android/iOS em Expo SDK 57, React Native, TypeScript e Expo Router. Usa o mesmo backend do PWA: `https://agendae-pwa.vercel.app`.
+Versão em **React Native com Expo** do PWA *Agendaê*. Projeto Integrador — Faculdade Senac Pernambuco, ADS, turma **32.109**.
 
-## Abrir no celular
+**Proposta (B2G):** um atendimento de saúde para o cidadão pelo **WhatsApp do Conecta Recife**, pensado para quem tem pouco acesso à internet. A pessoa faz a **pré-triagem em casa**, escolhe o **hospital de destino**, e a ficha segue pelo SUS. Ao chegar, ela informa o CPF ou o protocolo: **o médico já conhece o caso e a etapa de triagem no hospital é eliminada.**
 
-Na raiz do repositório, `./iniciar-expo.ps1` inicia um túnel público para compartilhar o QR Code com pessoas em outras redes. O script escolhe uma porta livre. Para usar somente a rede local, execute `./iniciar-expo.ps1 -RedeLocal`. O túnel funciona enquanto o computador e o servidor Expo estiverem ligados; o endereço pode mudar ao reiniciar. Cada pessoa precisa de um Expo Go compatível com SDK 57 e deve usar sua própria conta Agendaê para as consultas.
+> Demonstração acadêmica com dados fictícios. A consulta ao cadastro SUS e o envio ao DataSUS são **simulados**. A orientação não é diagnóstico. Em emergência, ligue 192.
 
-Na pasta `mobile`:
+## Integrantes
 
-```sh
-npm ci
-npm start
+Caio Esdras · Heitor Sette · Cristiano Alves · Pedro Luiz · James Bernardino · Alysson Rodrigo
+
+## Como executar
+
+Requisitos: Node.js 20 ou superior e o app **Expo Go** (SDK 57) no celular.
+
+```bash
+cd mobile
+npm install
+npx expo start
 ```
 
-Instale Expo Go compatível com SDK 57 no celular. Deixe celular e computador na mesma rede e escaneie o QR Code exibido no terminal. No Android use Expo Go; no iPhone use a câmera. Quando exigido pelo Expo Go, entre na mesma conta Expo no computador e no celular. Consulte [a configuração oficial do dispositivo](https://docs.expo.dev/get-started/set-up-your-environment/).
+- **Celular:** escaneie o QR Code com o Expo Go (Android) ou com a câmera (iPhone). Celular e computador precisam estar na mesma rede; se não estiverem, use `npx expo start --tunnel`.
+- **Navegador:** `npx expo start --web` e abra http://localhost:8081.
+- **Verificações:** `npx tsc --noEmit` (tipos) e `npx expo lint` (padrões de código).
 
-Se a rede bloquear a conexão local, execute `npx expo start --tunnel` e aceite a instalação do suporte de túnel quando solicitada. Isso disponibiliza o servidor de desenvolvimento durante a sessão; não publica um aplicativo nas lojas. Se a versão do Expo Go não corresponder ao SDK, consulte [o guia de compatibilidade](https://docs.expo.dev/troubleshooting/expo-go-version-mismatch/).
+**Para testar:** aba *WhatsApp* → **Fazer pré-triagem** → **Sim, concordo** → **Usar CPF de demonstração**. Outros CPFs fictícios cadastrados: `111.444.777-35` (idoso com diabetes, no Derby) e `390.533.447-05` (criança com asma). Qualquer outro CPF válido segue como cadastro novo.
 
-## Conexão com o banco
+## Telas
+
+| Tela | O que faz |
+| --- | --- |
+| **Início** | Identidade visual, objetivo do projeto e botão para o WhatsApp |
+| **WhatsApp** (principal) | Conversa guiada: CPF → cadastro SUS → queixa → início → intensidade → febre → sinais de alerta → doenças e remédios → hospital → resumo → envio com protocolo |
+| **Ficha** | O que o médico recebe: prioridade, hospital, dados do paciente e situação do envio |
+| **Fichas** | Histórico das pré-triagens feitas no aparelho |
+| **Unidades** | Hospitais estaduais do Recife, com busca por nome ou bairro, favoritos e detalhes |
+| **Canais** | SAMU 192, Disque Saúde 136, Conecta Recife e sites oficiais |
+
+## Recursos implementados (Etapa 2)
+
+| Recurso | Onde | Função real no app |
+| --- | --- | --- |
+| **Stack Navigator** | `src/app/_layout.tsx` | Abre a ficha e os detalhes da unidade por cima das abas, com botão de voltar |
+| **Bottom Tabs** | `src/app/(tabs)/_layout.tsx` | Cinco abas: Início, WhatsApp, Fichas, Unidades e Canais |
+| **Icons** | Abas, botões e cartões (`@expo/vector-icons`) | Ajudam a identificar cada tela e ação |
+| **Fade** | `src/components/FadeIn.tsx` | Conteúdo do Início, da ficha e dos detalhes aparece suavemente |
+| **Pulse** | `src/components/PulseButton.tsx` | Destaca o botão “Começar pelo WhatsApp” |
+| **Shake** | `src/hooks/useShake.ts` | O campo de mensagem balança quando se tenta enviar uma mensagem vazia |
+| **Modal** | `src/components/ConfirmModal.tsx` | Confirma antes de ligar para o 192 ou abrir o mapa ou um site |
+| **FlatList** | Conversa, Fichas e Unidades | Lista mensagens, pré-triagens e hospitais |
+| **ScrollView** | Início, Ficha, Canais e detalhes | Conteúdo com rolagem |
+| **TouchableOpacity** | Botões rápidos, cartões e favoritos | Toque em vez de digitação |
+| **TextInput** | Mensagem do chat e busca de unidades | Entrada de dados |
+| **useState** | Todas as telas e hooks | Mensagens, passo da conversa, favoritos, busca e modais |
+
+Também usamos **AsyncStorage** para guardar fichas e favoritos no aparelho, funcionando offline.
+
+## Organização do código
 
 ```text
-Expo → API HTTPS na Vercel → Firebase Admin → Cloud Firestore
-PWA  → mesma API          → mesmo projeto e mesmas consultas
+mobile/src/
+├── app/                      Telas (Expo Router: cada arquivo é uma rota)
+│   ├── _layout.tsx           Stack Navigator + providers
+│   ├── (tabs)/               Bottom Tabs: index, atendimento, fichas, unidades, canais
+│   ├── ficha/[id].tsx        Ficha da pré-triagem
+│   └── unidade/[id].tsx      Detalhes do hospital
+├── components/               ChatBubble, QuickReplies, HospitalCard, ConfirmModal, FadeIn, PulseButton
+├── hooks/                    useChat, useTriages, useFavorites, useShake
+├── services/
+│   ├── conversation.ts       Roteiro da conversa (máquina de estados)
+│   ├── triage.ts             Regras de prioridade e encaminhamento
+│   └── api.ts                Endereço do backend
+├── data/                     Hospitais, canais oficiais e cadastro SUS fictício
+└── theme.ts                  Cores e espaçamentos
 ```
 
-O app requer Firestore configurado no backend. Não utiliza SQLite nem demonstração local, e não salva consultas em arquivos no celular. As contas e consultas são persistidas no servidor. O catálogo público de unidades fictícias vem da API e permanece estático nesta etapa. Relatos da triagem não são armazenados no banco.
+**Fluxo de dados:** a tela `atendimento.tsx` usa o hook `useChat`. A cada resposta, `conversation.ts` decide a próxima pergunta. No fim, `useTriages` calcula prioridade e encaminhamento (`triage.ts`), salva a ficha no aparelho e a envia quando houver conexão.
 
-Configure `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` e `FIREBASE_PRIVATE_KEY` **na Vercel**, conforme [o guia Firebase](../docs/FIREBASE.md), e faça novo deployment. A IA exige `OPENAI_API_KEY` separadamente. Não coloque nenhuma dessas chaves no app.
+## Capturas de tela
 
-Para outro backend, copie `.env.example` para `.env.local`, altere `EXPO_PUBLIC_API_URL` e reinicie o Expo. Essa variável é pública e contém somente a URL. O app verifica `database: "firestore"` em `/api/status`; presença de configuração não garante conexão real. As funções precisam ter acesso ao banco.
+| | | |
+| --- | --- | --- |
+| ![Início](screenshots/01-inicio.png) | ![Menu do WhatsApp](screenshots/02-whatsapp-menu.png) | ![Cadastro SUS pelo CPF](screenshots/04-cadastro-sus-pelo-cpf.png) |
+| Início (Fade + Pulse) | Menu do atendimento | Consulta do cadastro pelo CPF |
+| ![Escolha do hospital](screenshots/05-escolha-do-hospital.png) | ![Resumo](screenshots/06-resumo-para-confirmar.png) | ![Protocolo](screenshots/07-protocolo-enviado.png) |
+| Escolha do hospital (📍 = perto) | Resumo para confirmar | Protocolo enviado |
+| ![Ficha](screenshots/08-ficha-do-medico.png) | ![Minhas fichas](screenshots/10-minhas-fichas.png) | ![Unidades](screenshots/11-unidades-busca-favorito.png) |
+| Ficha que o médico recebe | Histórico de fichas | Busca e favoritos |
+| ![Modal do mapa](screenshots/12-detalhes-modal.png) | ![Modal de canais](screenshots/13-canais-modal.png) | ![Shake](screenshots/03-shake-mensagem-vazia.png) |
+| Detalhes (Stack) + Modal | Canais + Modal | Shake na mensagem vazia |
 
-## Funcionalidades
+## PWA × React Native
 
-- Cadastro com consentimento, login, restauração de sessão e logout.
-- Criar, listar, editar e cancelar consultas da conta.
-- Consultar disponibilidade compartilhada entre usuários.
-- Atualização periódica a cada 5 segundos enquanto a tela está ativa, com atualização ao retornar ao app.
-- Orientação com IA usando o backend; alternativa manual quando indisponível.
+| PWA original | Versão React Native |
+| --- | --- |
+| HTML, CSS e JavaScript no navegador | Componentes nativos (`View`, `Text`, `FlatList`, `TextInput`, `Modal`) |
+| Navegação por âncoras (`#agendar`) | Expo Router com Stack e Bottom Tabs |
+| Chat do WhatsApp dependente da API | Conversa roda no aparelho, também sem internet |
+| `localStorage` | `AsyncStorage` |
+| Animações CSS | API `Animated` (Fade, Pulse, Shake) |
+| Pré-triagem por formulário | Pré-triagem guiada por botões, com CPF, histórico e hospital de destino |
 
-`/api/mobile-auth` retorna um token opaco, guardado no Expo SecureStore e enviado como `Authorization: Bearer`. O banco guarda apenas seu hash. A sessão expira em sete dias e é revogada no logout. O PWA mantém cookies HttpOnly e não recebe tokens no JSON de login.
+## Dificuldades e soluções
 
-Sem internet, não são feitas alterações locais ou sincronização posterior. Consultas já carregadas permanecem apenas na memória e podem ser lidas durante a sessão; erros de conexão são exibidos. O PWA original mantém seu App Shell e a demonstração offline. Não há Firebase Authentication; ambos os clientes usam a autenticação própria do backend.
+| Dificuldade | Solução |
+| --- | --- |
+| Público com pouca internet | A conversa e as regras de triagem rodam no aparelho; a ficha fica numa fila e é enviada depois |
+| Digitar é difícil para parte do público | Quase todas as respostas são botões; o CPF puxa os dados do cadastro |
+| Favoritos e fichas compartilhados entre telas | Context API (`FavoritesProvider` e `TriagesProvider`) |
+| A lista do chat não mostrava as últimas mensagens | `initialNumToRender` maior e rolagem automática ao fim |
+| `*` do CPF mascarado virava negrito do WhatsApp | Máscara com `•` |
+| App na web bloqueado pelo servidor (CORS) | Liberação de CORS apenas nas rotas públicas `/api/chat` e `/api/status` |
 
-## Validar
+## Roteiro do vídeo (até 5 minutos)
 
-```sh
-npm run typecheck
-npm run lint
-npm run export
-npx expo-doctor
-```
+1. **0:00–0:40** — Problema e proposta B2G: pré-triagem em casa pelo WhatsApp do Conecta Recife, sem repetir a triagem no hospital.
+2. **0:40–1:20** — O PWA original no navegador (https://agendae-pwa.vercel.app): telas e o chat em `/zap`.
+3. **1:20–3:30** — O app React Native no celular: Início (Fade e Pulse), WhatsApp com CPF de demonstração, cadastro, perguntas, hospital, resumo e protocolo; depois a ficha (Stack), o envio e a aba Fichas.
+4. **3:30–4:20** — Unidades (busca, favoritos, detalhes e Modal), Canais (Modal do 192) e o Shake no chat.
+5. **4:20–5:00** — Comparação PWA × React Native, os recursos usados e as dificuldades.
 
-Na raiz, `npm test` inclui autenticação móvel, CRUD compartilhado com o site, isolamento entre contas e revogação de sessão. Esses testes usam SQLite local; não comprovam conexão com o Firebase real. Use `npm run test:firebase` na raiz após configurar as credenciais para testar o banco real.
+## Links
 
-## Gerar APK opcional
-
-Com sua conta Expo autenticada:
-
-```sh
-npx eas-cli@latest login
-npx eas-cli@latest build --platform android --profile preview
-```
-
-`eas.json` prepara um APK para distribuição interna. O build depende de acesso à conta Expo e das condições do serviço; não foi criado ou enviado às lojas nesta entrega. Testes em um celular físico ainda são necessários para validar teclado, navegação, chamadas e persistência da sessão.
+- Código-fonte: https://github.com/eusettee/agendae-pwa (pasta `mobile/`)
+- PWA original: https://agendae-pwa.vercel.app
