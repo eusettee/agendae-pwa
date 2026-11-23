@@ -27,4 +27,4 @@ module.exports = endpoint(async (req, res) => {
   const forwarded = await viaN8n({ channel: 'site', from, text });
   if (forwarded) return res.status(200).json(forwarded);
   return res.status(200).json({ channel: 'site', via: 'direto', ...(await reply({ text, from, channel: 'site' })) });
-});
+}, { cors: true });
