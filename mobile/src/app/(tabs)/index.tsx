@@ -26,7 +26,7 @@ export default function HomeScreen() {
         </FadeIn>
 
         <FadeIn delay={200}>
-          <PulseButton title="Começar pelo WhatsApp" icon="logo-whatsapp" onPress={() => router.push('/atendimento')} />
+          <PulseButton title="Começar pelo WhatsApp" icon="logo-whatsapp" onPress={() => router.push('/whatsapp')} />
         </FadeIn>
 
         <FadeIn delay={400} style={styles.card}>

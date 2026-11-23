@@ -1,8 +1,8 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { Animated, ViewStyle } from 'react-native';
+import { Animated, StyleProp, ViewStyle } from 'react-native';
 
 // Recurso FADE: o conteúdo aparece suavemente (opacidade 0 → 1) e sobe alguns pixels.
-export function FadeIn({ children, delay = 0, style }: { children: ReactNode; delay?: number; style?: ViewStyle }) {
+export function FadeIn({ children, delay = 0, style }: { children: ReactNode; delay?: number; style?: StyleProp<ViewStyle> }) {
   const [opacity] = useState(() => new Animated.Value(0));
 
   useEffect(() => {

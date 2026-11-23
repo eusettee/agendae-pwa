@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { FadeIn } from '../../components/FadeIn';
@@ -37,6 +37,11 @@ export default function FichaScreen() {
         <Text style={[styles.priority, { backgroundColor: priority.color }]}>{priority.label}</Text>
         <Text style={styles.advice}>{triage.advice}</Text>
       </FadeIn>
+
+      <TouchableOpacity style={styles.doctorButton} onPress={() => router.push({ pathname: '/prontuario/[id]', params: { id: triage.id } })}>
+        <Ionicons name="medical" size={20} color="#fff" />
+        <Text style={styles.buttonText}>Ver prontuário (tela do médico)</Text>
+      </TouchableOpacity>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>O que o médico vai receber</Text>
@@ -97,6 +102,7 @@ const styles = StyleSheet.create({
   statusText: { fontWeight: '700', color: colors.text, flex: 1 },
   button: { backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 24, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: '700' },
+  doctorButton: { flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1f2d3d', paddingVertical: 14, borderRadius: 26 },
   syncMessage: { color: colors.primary, fontWeight: '600' },
   note: { color: colors.muted, fontSize: 12 },
 });

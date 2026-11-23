@@ -21,6 +21,11 @@ export function ChatBubble({ message }: { message: Message }) {
           <Text style={styles.linkText}>📄 Ver minha ficha</Text>
         </TouchableOpacity>
       )}
+      {message.fichaId && (
+        <TouchableOpacity style={styles.link} onPress={() => router.push({ pathname: '/prontuario/[id]', params: { id: message.fichaId! } })}>
+          <Text style={styles.linkText}>🩺 Ver como o médico recebe</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }

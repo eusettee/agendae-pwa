@@ -31,6 +31,8 @@ npx expo start
 | Tela | O que faz |
 | --- | --- |
 | **Início** | Identidade visual, objetivo do projeto e botão para o WhatsApp |
+| **WhatsApp em tela cheia** (`/whatsapp`) | Mesma conversa, sem as abas, com cabeçalho igual ao do WhatsApp; abre pelo botão do Início |
+| **Prontuário médico** (`/prontuario/[id]`) | Visão do médico: prioridade, alergia em destaque, queixa, história, comorbidades, medicamentos e botões para chamar e atender |
 | **WhatsApp** (principal) | Conversa guiada: CPF → cadastro SUS → queixa → início → intensidade → febre → sinais de alerta → doenças e remédios → hospital → resumo → envio com protocolo |
 | **Ficha** | O que o médico recebe: prioridade, hospital, dados do paciente e situação do envio |
 | **Fichas** | Histórico das pré-triagens feitas no aparelho |
@@ -63,9 +65,11 @@ mobile/src/
 ├── app/                      Telas (Expo Router: cada arquivo é uma rota)
 │   ├── _layout.tsx           Stack Navigator + providers
 │   ├── (tabs)/               Bottom Tabs: index, atendimento, fichas, unidades, canais
+│   ├── whatsapp.tsx          WhatsApp em tela cheia
+│   ├── prontuario/[id].tsx   Prontuário médico
 │   ├── ficha/[id].tsx        Ficha da pré-triagem
 │   └── unidade/[id].tsx      Detalhes do hospital
-├── components/               ChatBubble, QuickReplies, HospitalCard, ConfirmModal, FadeIn, PulseButton
+├── components/               WhatsAppChat, ChatBubble, QuickReplies, HospitalCard, ConfirmModal, FadeIn, PulseButton
 ├── hooks/                    useChat, useTriages, useFavorites, useShake
 ├── services/
 │   ├── conversation.ts       Roteiro da conversa (máquina de estados)
@@ -81,14 +85,16 @@ mobile/src/
 
 | | | |
 | --- | --- | --- |
-| ![Início](screenshots/01-inicio.png) | ![Menu do WhatsApp](screenshots/02-whatsapp-menu.png) | ![Cadastro SUS pelo CPF](screenshots/04-cadastro-sus-pelo-cpf.png) |
-| Início (Fade + Pulse) | Menu do atendimento | Consulta do cadastro pelo CPF |
-| ![Escolha do hospital](screenshots/05-escolha-do-hospital.png) | ![Resumo](screenshots/06-resumo-para-confirmar.png) | ![Protocolo](screenshots/07-protocolo-enviado.png) |
+| ![](screenshots/01-inicio.png) | ![](screenshots/02-whatsapp-tela-cheia.png) | ![](screenshots/04-cadastro-sus-pelo-cpf.png) |
+| Início (Fade + Pulse) | Tela do WhatsApp (tela cheia) | Cadastro SUS pelo CPF |
+| ![](screenshots/05-escolha-do-hospital.png) | ![](screenshots/06-resumo-para-confirmar.png) | ![](screenshots/07-protocolo-enviado.png) |
 | Escolha do hospital (📍 = perto) | Resumo para confirmar | Protocolo enviado |
-| ![Ficha](screenshots/08-ficha-do-medico.png) | ![Minhas fichas](screenshots/10-minhas-fichas.png) | ![Unidades](screenshots/11-unidades-busca-favorito.png) |
-| Ficha que o médico recebe | Histórico de fichas | Busca e favoritos |
-| ![Modal do mapa](screenshots/12-detalhes-modal.png) | ![Modal de canais](screenshots/13-canais-modal.png) | ![Shake](screenshots/03-shake-mensagem-vazia.png) |
-| Detalhes (Stack) + Modal | Canais + Modal | Shake na mensagem vazia |
+| ![](screenshots/08-prontuario-medico.png) | ![](screenshots/09-prontuario-conduta.png) | ![](screenshots/10-ficha-do-cidadao.png) |
+| Prontuário médico | Prontuário: encaminhamento e chamada | Ficha do cidadão (Stack) |
+| ![](screenshots/11-minhas-fichas.png) | ![](screenshots/12-unidades-busca-favorito.png) | ![](screenshots/13-detalhes-modal.png) |
+| Minhas fichas (FlatList) | Unidades: busca e favoritos | Detalhes + Modal |
+| ![](screenshots/14-canais-modal.png) | ![](screenshots/03-shake-mensagem-vazia.png) |  |
+| Canais + Modal | Shake na mensagem vazia |  |
 
 ## PWA × React Native
 
@@ -112,7 +118,11 @@ mobile/src/
 | `*` do CPF mascarado virava negrito do WhatsApp | Máscara com `•` |
 | App na web bloqueado pelo servidor (CORS) | Liberação de CORS apenas nas rotas públicas `/api/chat` e `/api/status` |
 
-## Roteiro do vídeo (até 5 minutos)
+## Vídeo
+
+`Video-Agendae-PWA-x-ReactNative.mp4` (2min30, enviado no Teams) mostra o PWA original e o app React Native com legendas. Roteiro para regravar com narração:
+
+### Roteiro do vídeo (até 5 minutos)
 
 1. **0:00–0:40** — Problema e proposta B2G: pré-triagem em casa pelo WhatsApp do Conecta Recife, sem repetir a triagem no hospital.
 2. **0:40–1:20** — O PWA original no navegador (https://agendae-pwa.vercel.app): telas e o chat em `/zap`.

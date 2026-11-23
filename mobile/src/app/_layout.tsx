@@ -15,6 +15,8 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="unidade/[id]" options={{ title: 'Detalhes da unidade' }} />
         <Stack.Screen name="ficha/[id]" options={{ title: 'Ficha da pré-triagem' }} />
+        <Stack.Screen name="whatsapp" options={{ headerShown: false }} />
+        <Stack.Screen name="prontuario/[id]" options={{ title: 'Prontuário médico', headerStyle: { backgroundColor: '#1f2d3d' } }} />
       </Stack>
     </FavoritesProvider>
     </TriagesProvider>
